@@ -41,26 +41,31 @@ def health_check():
 
 
 @app.get("/api/v1/objects/search")
-def search_objects(q: str = "", category: int = None, limit: int = 20):
-    limit = min(limit, 100)
+def search_objects(q: str = "", category: int = None, limit: int = 20, offset: int = 0):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
     conn = connect()
     cur = conn.cursor()
 
-    query = """
-        SELECT o.object_id, o.name, o.norad_id, o.category_id
-        FROM objects o
-        WHERE o.name ILIKE %s
-    """
+    base_where = "WHERE o.name ILIKE %s"
     params = [f"%{q}%"]
-
     if category is not None:
-        query += " AND o.category_id = %s"
+        base_where += " AND o.category_id = %s"
         params.append(category)
 
-    query += " LIMIT %s;"
-    params.append(limit)
+    # total count (for has_more / pagination metadata)
+    cur.execute(f"SELECT COUNT(*) FROM objects o {base_where};", params)
+    total_count = cur.fetchone()[0]
 
-    cur.execute(query, params)
+    query = f"""
+        SELECT o.object_id, o.name, o.norad_id, o.category_id
+        FROM objects o
+        {base_where}
+        ORDER BY o.object_id
+        LIMIT %s OFFSET %s;
+    """
+    cur.execute(query, params + [limit, offset])
     rows = cur.fetchall()
     cur.close()
     conn.close()
@@ -69,26 +74,41 @@ def search_objects(q: str = "", category: int = None, limit: int = 20):
         {"object_id": r[0], "name": r[1], "norad_id": r[2], "category_id": r[3]}
         for r in rows
     ]
-    return {"results": results, "count": len(results)}
+    return {
+        "results": results,
+        "count": len(results),
+        "total_count": total_count,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(results) < total_count,
+    }
 
 
 @app.get("/api/v1/objects")
 def list_objects(category: int = None, limit: int = 20, offset: int = 0):
-    limit = min(limit, 100)
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
     conn = connect()
     cur = conn.cursor()
 
-    query = "SELECT object_id, name, norad_id, category_id FROM objects"
+    base_where = ""
     params = []
-
     if category is not None:
-        query += " WHERE category_id = %s"
+        base_where = "WHERE category_id = %s"
         params.append(category)
 
-    query += " ORDER BY object_id LIMIT %s OFFSET %s;"
-    params.extend([limit, offset])
+    cur.execute(f"SELECT COUNT(*) FROM objects {base_where};", params)
+    total_count = cur.fetchone()[0]
 
-    cur.execute(query, params)
+    query = f"""
+        SELECT object_id, name, norad_id, category_id
+        FROM objects
+        {base_where}
+        ORDER BY object_id
+        LIMIT %s OFFSET %s;
+    """
+    cur.execute(query, params + [limit, offset])
     rows = cur.fetchall()
     cur.close()
     conn.close()
@@ -97,12 +117,22 @@ def list_objects(category: int = None, limit: int = 20, offset: int = 0):
         {"object_id": r[0], "name": r[1], "norad_id": r[2], "category_id": r[3]}
         for r in rows
     ]
-    return {"results": results, "count": len(results)}
+    return {
+        "results": results,
+        "count": len(results),
+        "total_count": total_count,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(results) < total_count,
+    }
 
 
 @app.get("/api/v1/objects/{object_id}")
 def get_object(object_id: int):
+    if object_id < 1:
+        raise HTTPException(status_code=400, detail="object_id must be positive")
     conn = connect()
+    ...
     cur = conn.cursor()
     cur.execute(
         """
