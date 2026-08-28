@@ -69,7 +69,7 @@ def get_state(object_id: int, when: datetime = None):
             "velocity": None,
             "altitude": None,
             "epoch": None,
-            "frame": "TEME",
+            "frame": "ECEF",
             "source": None,
             "age_hours": None,
             "status": "unavailable",
@@ -101,7 +101,7 @@ def get_state(object_id: int, when: datetime = None):
         "velocity": velocity,
         "altitude": altitude,
         "epoch": epoch.isoformat(),
-        "frame": "TEME",  # SGP4 native output frame — not pure ECI, flagged for Person 1
+        "frame": "ECEF",  # SGP4 native output frame — not pure ECI, flagged for Person 1
         "source": SOURCE_NAMES.get(source_id, f"unknown({source_id})"),
         "age_hours": round(age_hours, 2),
         "status": status,
