@@ -16,6 +16,15 @@ from diagnostics import get_diagnostics
 
 app = FastAPI(title="Space-website API", version="0.1.0")
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # TODO: restrict to actual frontend origin once known
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def connect():
     return psycopg2.connect(
