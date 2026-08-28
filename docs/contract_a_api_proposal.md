@@ -6,7 +6,9 @@ Local base URL (dev): `http://127.0.0.1:8000/api/v1` — each person runs their 
 
 CORS is enabled (`allow_origins=["*"]` for now, will restrict once frontend origin is known).
 
-**Note on `frame`:** SGP4 output is currently TEME, not Earth-fixed. Pending confirmation from Person 1 on TEME→ECEF conversion (see `teme_ecef_question_for_person1.md`). Until resolved, `frame` will read `"TEME"` — do not assume ECEF yet.
+**Note on `frame`:** **Resolved.** SGP4 output is TEME natively, but the backend converts to ECEF (Earth-fixed) before returning — using astropy's TEME→ITRS transform. `frame` in the `/state` response now reads `"ECEF"`. This was confirmed with Person 1: conversion happens once, backend-side, so every frontend consumer (render, hover, click, orbit path) gets ready-to-use Earth-fixed coordinates with no client-side conversion needed. Also matches search/list pagination metadata added since the last version of this doc (see endpoint #2/#3 below).
+
+Search/list endpoints also now return pagination metadata (`total_count`, `limit`, `offset`, `has_more`) and `object_id` is validated as positive across object-scoped endpoints (returns `400` on invalid input) — both added since the previous version of this doc.
 
 ---
 
@@ -19,24 +21,30 @@ Response:
 ```
 
 ## 2. Search
-`GET /api/v1/objects/search?q=<text>&category=<id>&limit=<n>`
+`GET /api/v1/objects/search?q=<text>&category=<id>&limit=<n>&offset=<n>`
 - `q`: matches against object `name` (case-insensitive substring)
 - `category`: optional, filters by category_id (1-7)
 - `limit`: default 20, max 100
+- `offset`: default 0
 
-**Real tested response** (`q=ISS`):
+**Real tested response** (`q=ISS&limit=1`):
 ```json
 {
   "results": [
-    {"object_id": 1, "name": "ISS (ZARYA)", "norad_id": 25544, "category_id": 1},
-    {"object_id": 4, "name": "ISS (NAUKA)", "norad_id": 49044, "category_id": 1}
+    {"object_id": 1, "name": "ISS (ZARYA)", "norad_id": 25544, "category_id": 1}
   ],
-  "count": 2
+  "count": 1,
+  "total_count": 2,
+  "limit": 1,
+  "offset": 0,
+  "has_more": true
 }
 ```
 
 ## 3. Category filter / listing
 `GET /api/v1/objects?category=<id>&limit=<n>&offset=<n>`
+
+Same pagination shape as search (`total_count`, `limit`, `offset`, `has_more`).
 
 **Real tested response** (`category=1&limit=5`):
 ```json
@@ -46,10 +54,13 @@ Response:
     {"object_id": 2, "name": "POISK", "norad_id": 36086, "category_id": 1},
     {"object_id": 3, "name": "CSS (TIANHE)", "norad_id": 48274, "category_id": 1}
   ],
-  "count": 3
+  "count": 3,
+  "total_count": 3,
+  "limit": 5,
+  "offset": 0,
+  "has_more": false
 }
 ```
-(shape identical to search results)
 
 ## 4. Object lookup / details
 `GET /api/v1/objects/{object_id}`
@@ -75,6 +86,11 @@ Response:
 ```
 `metadata` keys vary per object depending on what's resolved in `resolved_metadata`. `media` may be an empty list if no image exists.
 
+**400 if `object_id` is not positive:**
+```json
+{"detail": "object_id must be positive"}
+```
+
 **404 if object_id doesn't exist:**
 ```json
 {"detail": "object not found"}
@@ -83,21 +99,26 @@ Response:
 ## 5. Orbital state (Contract C)
 `GET /api/v1/objects/{object_id}/state`
 
-**Real tested response** (`object_id=1`):
+**Real tested response** (`object_id=1`) — **note `frame` is now `"ECEF"`, converted backend-side:**
 ```json
 {
   "object_id": 1,
-  "position": [5071.426570992608, -3464.9902249714746, 2896.65414762014],
-  "velocity": [0.9937172344157711, 5.691523993932631, 5.038512165808138],
-  "altitude": 419.8858019438567,
+  "position": [-4700.136502960001, -2354.1818383273367, 4291.947063017316],
+  "velocity": [-0.018980350238962274, -6.454470044947357, -3.5474196423010653],
+  "altitude": 415.32926301916996,
   "epoch": "2026-08-13T03:34:14.082240",
-  "frame": "TEME",
+  "frame": "ECEF",
   "source": "Space-Track",
-  "age_hours": 8.24,
-  "status": "fresh"
+  "age_hours": 353.19,
+  "status": "stale"
 }
 ```
-`status` is one of: `fresh`, `stale`, `error`, `unavailable`.
+`status` is one of: `fresh`, `stale`, `error`, `unavailable`. `position`/`velocity` are Earth-fixed (ECEF/ITRS) — ready to hand directly to Cesium, no further conversion needed on the frontend.
+
+**400 if `object_id` is not positive:**
+```json
+{"detail": "object_id must be positive"}
+```
 
 **404 if no orbital data exists for the object:**
 ```json
@@ -136,6 +157,12 @@ Not a separate endpoint — `media` is included directly in the object lookup re
   "ingestion_row_count": 10
 }
 ```
+Note: `raw_latest_row.epoch` and `raw_latest_row` orbital elements are the untouched TLE-derived values (still TEME-relative by nature, since this is raw SGP4 input, not the converted output) — diagnostics intentionally exposes backend internals, so don't treat this endpoint's numbers as ECEF.
+
+**400 if `object_id` is not positive:**
+```json
+{"detail": "object_id must be positive"}
+```
 
 **404 if no orbital data exists for the object:**
 ```json
@@ -149,14 +176,16 @@ Not a separate endpoint — `media` is included directly in the object lookup re
 Each person runs their own local backend instance for now — no shared always-on server yet.
 
 1. Clone the repo, `cd backend`
-2. Install deps: `pip install fastapi "uvicorn[standard]" psycopg2 sgp4 python-dotenv`
+2. Install deps: `pip install fastapi "uvicorn[standard]" psycopg2 sgp4 python-dotenv astropy`
 3. Set up local Postgres with the schema (`db/schema.sql`, `db/seed.sql`, `db/views.sql`) — real data population requires running the ingestion scripts, or contact Person 2 for a data subset if you just need something to test against.
 4. Run: `python -m uvicorn main:app --reload --port 8000`
 5. Base URL: `http://127.0.0.1:8000/api/v1`
 
 If you want to build against the API shapes without setting up a real DB yet, the JSON examples above are real, tested output — safe to mock/hardcode for early development (types, API client, application state) before wiring up a live connection.
 
-## Open items
-- **TEME → ECEF conversion**: pending Person 1's confirmation. `frame` field will change from `"TEME"` to `"ECEF"` once implemented — don't hardcode assumptions about which frame you're getting yet.
+## Resolved items
+- ~~TEME → ECEF conversion~~ — **done.** Confirmed with Person 1, implemented backend-side via astropy, live in the `/state` endpoint. `frame` now reads `"ECEF"`.
+
+## Still open items
 - **Shared/always-on backend instance**: not set up yet — under discussion, may move to a small cloud Postgres later if local-instance coordination becomes a bottleneck.
-- **Pagination style, auth, rate limiting**: still open, not yet decided (see original open questions).
+- **Auth, rate limiting**: still open, not yet decided.
