@@ -23,10 +23,10 @@ if not ST_USER or not ST_PASS:
     raise SystemExit("Set SPACETRACK_USER and SPACETRACK_PASS env vars first.")
 
 conn = psycopg2.connect(
-    host="localhost",
-    dbname="project_db",
-    user="postgres",
-    password="pavan@2805"
+    host=os.getenv("DB_HOST", "localhost"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
 )
 cur = conn.cursor()
 

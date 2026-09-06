@@ -27,10 +27,10 @@ HEADERS = {
 }
 
 conn = psycopg2.connect(
-    host="localhost",
-    dbname="project_db",
-    user="postgres",
-    password="pavan@2805"
+    host=os.getenv("DB_HOST", "localhost"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
 )
 cur = conn.cursor()
 
@@ -55,7 +55,7 @@ while True:
 
     response = None
     for attempt in range(1, MAX_RETRIES + 1):
-        response = requests.get(API_BASE, headers=HEADERS, params=params)
+        response = requests.get(API_BASE, headers=HEADERS, params=params, timeout=30)
         if response.status_code == 200:
             break
         if response.status_code in (502, 503, 504):

@@ -1,3 +1,4 @@
+import os
 import requests
 import psycopg2
 
@@ -5,10 +6,10 @@ SOURCE_ID = 3  # SatNOGS
 API_URL = "https://db.satnogs.org/api/satellites/?format=json"
 
 conn = psycopg2.connect(
-    host="localhost",
-    dbname="project_db",
-    user="postgres",
-    password="pavan@2805"
+    host=os.getenv("DB_HOST", "localhost"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
 )
 cur = conn.cursor()
 
@@ -22,7 +23,7 @@ all_records = []
 url = API_URL
 
 while url:
-    response = requests.get(url)
+    response = requests.get(url, timeout=30)
     if response.status_code != 200 or not response.text.strip():
         print(f"SatNOGS fetch failed: status {response.status_code}")
         break

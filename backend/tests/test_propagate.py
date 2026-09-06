@@ -15,8 +15,8 @@ from propagate import get_latest_elements, build_satellite, propagate
 
 
 def test_leo_object_altitude_in_range():
-    """object_id 1 is ISS-like (LEO, ~51.6 deg inclination) — altitude should be ~350-450km."""
-    row = get_latest_elements(1)
+    """object_id 2 is ISS-like (LEO, ~51.6 deg inclination) — altitude should be ~350-450km."""
+    row = get_latest_elements(2)
     sat = build_satellite(row)
     now = datetime.now(timezone.utc)
     position, velocity, altitude = propagate(sat, now)
@@ -36,7 +36,7 @@ def test_geo_object_altitude_in_range():
 
 def test_position_and_velocity_are_nonzero_vectors():
     """Sanity check: propagation shouldn't return all-zero vectors."""
-    row = get_latest_elements(1)
+    row = get_latest_elements(2)
     sat = build_satellite(row)
     now = datetime.now(timezone.utc)
     position, velocity, altitude = propagate(sat, now)
@@ -47,7 +47,7 @@ def test_position_and_velocity_are_nonzero_vectors():
 
 def test_propagation_is_deterministic_for_same_time():
     """Same input time should always give the same output (no randomness)."""
-    row = get_latest_elements(1)
+    row = get_latest_elements(2)
     sat1 = build_satellite(row)
     sat2 = build_satellite(row)
     when = datetime(2026, 8, 14, 12, 0, 0, tzinfo=timezone.utc)
