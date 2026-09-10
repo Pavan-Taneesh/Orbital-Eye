@@ -3,8 +3,12 @@ FastAPI app entrypoint (P2-M9).
 Run with: python -m uvicorn main:app --reload --port 8000
 """
 
-import sys
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "logic"))
 
@@ -20,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: restrict to actual frontend origin once known
+    allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,10 +32,10 @@ app.add_middleware(
 
 def connect():
     return psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="pavan@2805",
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", ""),
     )
 
 

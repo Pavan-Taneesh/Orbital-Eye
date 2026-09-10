@@ -7,7 +7,7 @@ Usage (standalone test):
     python logic/state_model.py <object_id>
 """
 
-import sys
+import os
 from datetime import datetime, timezone
 
 import psycopg2
@@ -25,14 +25,18 @@ SOURCE_NAMES = {
 STALE_THRESHOLD_HOURS = 24
 
 
+def connect():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", "SpaceDB@2026"),
+    )
+
+
 def get_source_and_freshness(object_id: int):
     """Pull source_id and fetched_at for the latest orbital_elements row."""
-    conn = psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="pavan@2805",
-    )
+    conn = connect()
     cur = conn.cursor()
     cur.execute(
         """

@@ -1,11 +1,12 @@
+import os
 import requests
 import psycopg2
 
 conn = psycopg2.connect(
-    host="localhost",
-    dbname="project_db",
-    user="postgres",
-    password="pavan@2805"
+    host=os.getenv("DB_HOST", "localhost"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
 )
 cur = conn.cursor()
 
@@ -24,7 +25,7 @@ total_inserted = 0
 
 for category_id, group in GROUPS.items():
     url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=json"
-    response = requests.get(url)
+    response = requests.get(url, timeout=30)
     data = response.json()
 
     for sat in data:
@@ -72,7 +73,7 @@ ROCKET_BODY_CATEGORY_ID = 6
 # Rocket bodies = name contains "R/B" (per CelesTrak SATCAT definition),
 # also sometimes "AKM"/"PKM", excluding "DEB".
 satcat_url = "https://celestrak.org/satcat/records.php?NAME=R/B&FORMAT=json"
-response = requests.get(satcat_url)
+response = requests.get(satcat_url, timeout=30)
 
 if response.status_code != 200 or not response.text.strip():
     print(f"Rocket bodies fetch failed: status {response.status_code}, body: {response.text[:200]}")
@@ -109,7 +110,7 @@ DEBRIS_GROUPS = ["cosmos-1408-debris", "iridium-33-debris", "cosmos-2251-debris"
 debris_count = 0
 for group in DEBRIS_GROUPS:
     url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=json"
-    response = requests.get(url)
+    response = requests.get(url, timeout=30)
     data = response.json()
 
     for sat in data:
