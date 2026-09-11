@@ -4,6 +4,7 @@ Run with: python -m uvicorn main:app --reload --port 8000
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -136,7 +137,6 @@ def get_object(object_id: int):
     if object_id < 1:
         raise HTTPException(status_code=400, detail="object_id must be positive")
     conn = connect()
-    ...
     cur = conn.cursor()
     cur.execute(
         """
