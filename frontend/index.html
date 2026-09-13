@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Satellite Diagnostics Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --bg-card: #111a2e;
+      --fg: #e8ecf4;
+      --fg-muted: #8b95a9;
+      --accent: #00d4aa;
+      --accent-dim: #00d4aa33;
+      --warn: #ffb800;
+      --danger: #ff4d6a;
+      --border: #1e2d4a;
+      --font-mono: 'SF Mono', 'Fira Code', monospace;
+      --font-sans: system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; }
+    .subtitle { color: var(--fg-muted); font-size: 0.9rem; margin-top: 4px; }
+
+    .search-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .search-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .input-group { flex: 1; min-width: 200px; }
+    label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); margin-bottom: 6px; }
+    input[type="number"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--fg);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="number"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    button {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+    }
+    button:hover { background: #00e8bb; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+    button.secondary:hover { border-color: var(--fg-muted); }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .status-ok { background: #00d4aa22; color: var(--accent); }
+    .status-warn { background: #ffb80022; color: var(--warn); }
+    .status-danger { background: #ff4d6a22; color: var(--danger); }
+    .status-neutral { background: var(--border); color: var(--fg-muted); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 0.95rem; font-weight: 600;
+      margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+    .kv-item { display: flex; flex-direction: column; gap: 2px; }
+    .kv-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); }
+    .kv-value { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); word-break: break-all; }
+    .kv-value.empty { color: var(--fg-muted); font-style: italic; }
+
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .history-table th {
+      text-align: left; padding: 10px 12px;
+      font-weight: 500; color: var(--fg-muted);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--fg); }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: var(--bg); }
+    .history-table .source-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+    }
+    .source-spacetrack { background: #1e3a5f; color: #64b5f6; }
+    .source-satnogs { background: #1e5f3a; color: #81c784; }
+    .source-discos { background: #5f3a1e; color: #ffb74d; }
+    .source-celestrak { background: #3a1e5f; color: #ce93d8; }
+    .source-unknown { background: var(--border); color: var(--fg-muted); }
+
+    .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: var(--fg-muted); }
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-state { text-align: center; padding: 40px; color: var(--danger); }
+    .error-state h3 { margin-bottom: 8px; }
+    .empty-state { text-align: center; padding: 40px; color: var(--fg-muted); }
+
+    .orbital-elements { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .element { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .element-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); margin-bottom: 4px; }
+    .element-value { font-family: var(--font-mono); font-size: 0.85rem; color: var(--fg); }
+
+    @media (max-width: 640px) {
+      .kv-grid { grid-template-columns: 1fr; }
+      .orbital-elements { grid-template-columns: 1fr 1fr; }
+      .search-row { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Satellite Diagnostics</h1>
+        <p class="subtitle">Real-time orbital data health & ingestion history</p>
+      </div>
+    </header>
+
+    <section class="search-section" aria-label="Object search">
+      <div class="search-row">
+        <div class="input-group">
+          <label for="objectId">Object ID (NORAD CAT ID)</label>
+          <input type="number" id="objectId" placeholder="e.g., 25544 (ISS)" min="1" step="1" aria-label="Enter satellite object ID">
+        </div>
+        <button id="searchBtn" type="button">Load Diagnostics</button>
+        <button id="clearBtn" type="button" class="secondary" style="display:none">Clear</button>
+      </div>
+    </section>
+
+    <main id="dashboard" style="display:none">
+      <div class="grid">
+        <section class="card" aria-labelledby="sgp4-title">
+          <h2 id="sgp4-title">SGP4 Propagation Status</h2>
+          <div class="kv-grid" id="sgp4Status">
+            <div class="kv-item"><span class="kv-label">Error Code</span><span class="kv-value" id="sgp4Code">—</span></div>
+            <div class="kv-item"><span class="kv-label">Status</span><span class="kv-value" id="sgp4StatusText">—</span></div>
+            <div class="kv-item"><span class="kv-label">Last Checked</span><span class="kv-value" id="sgp4Time">—</span></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="staleness-title">
+          <h2 id="staleness-title">Staleness Assessment</h2>
+          <div class="kv-grid" id="stalenessStatus">
+            <div class="kv-item"><span class="kv-label">Data Age</span><span class="kv-value" id="stalenessAge">—</span></div>
+            <div class="kv-item"><span class="kv-label">Threshold</span><span class="kv-value" id="stalenessThreshold">24 hours</span></div>
+            <div class="kv-item"><span class="kv-label">Status</span><span class="kv-value" id="stalenessState">—</span></div>
+            <div class="kv-item"><span class="kv-label">Last Fetched</span><span class="kv-value" id="stalenessFetched">—</span></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="elements-title" style="grid-column: 1 / -1;">
+          <h2 id="elements-title">Latest Orbital Elements</h2>
+          <div class="orbital-elements" id="orbitalElements">
+            <div class="element"><div class="element-label">Epoch</div><div class="element-value" id="elEpoch">—</div></div>
+            <div class="element"><div class="element-label">Mean Motion</div><div class="element-value" id="elMeanMotion">—</div></div>
+            <div class="element"><div class="element-label">Eccentricity</div><div class="element-value" id="elEccentricity">—</div></div>
+            <div class="element"><div class="element-label">Inclination</div><div class="element-value" id="elInclination">—</div></div>
+            <div class="element"><div class="element-label">RAAN</div><div class="element-value" id="elRaan">—</div></div>
+            <div class="element"><div class="element-label">Arg of Pericenter</div><div class="element-value" id="elArgPeri">—</div></div>
+            <div class="element"><div class="element-label">Mean Anomaly</div><div class="element-value" id="elMeanAnomaly">—</div></div>
+            <div class="element"><div class="element-label">B* Drag Term</div><div class="element-value" id="elBstar">—</div></div>
+            <div class="element"><div class="element-label">Mean Motion Dot</div><div class="element-value" id="elMeanMotionDot">—</div></div>
+            <div class="element"><div class="element-label">Mean Motion DDot</div><div class="element-value" id="elMeanMotionDDot">—</div></div>
+            <div class="element"><div class="element-label">Element Set No.</div><div class="element-value" id="elSetNo">—</div></div>
+            <div class="element"><div class="element-label">Rev at Epoch</div><div class="element-value" id="elRevAtEpoch">—</div></div>
+            <div class="element"><div class="element-label">Source ID</div><div class="element-value" id="elSourceId">—</div></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="history-title" style="grid-column: 1 / -1;">
+          <h2 id="history-title">Ingestion History <span id="historyCount" style="font-weight:400;color:var(--fg-muted);font-size:0.8rem"></span></h2>
+          <div id="historyContent">
+            <div class="loading"><div class="spinner"></div>Loading history…</div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div id="emptyState" class="empty-state" style="display:none">
+      <h3>No data loaded</h3>
+      <p>Enter an Object ID above to view diagnostics</p>
+    </div>
+
+    <div id="errorState" class="error-state" style="display:none">
+      <h3>Error</h3>
+      <p id="errorMsg"></p>
+      <button id="retryBtn" class="secondary" style="margin-top:12px">Try Again</button>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:8000';
+    const SGP4_MESSAGES = {
+      0: 'Success',
+      1: 'Mean elements eccentricity >= 1.0 or < -0.001',
+      2: 'Mean motion < 0.0',
+      3: 'Perturbed eccentricity < -0.001 or > 1.0',
+      4: 'Semi-latus rectum < 0.0',
+      5: 'Epoch elements suborbital',
+      6: 'Satellite has decayed',
+    };
+
+    const SOURCE_CLASSES = {
+      'spacetrack': 'source-spacetrack',
+      'satnogs': 'source-satnogs',
+      'discos': 'source-discos',
+      'celestrak': 'source-celestrak',
+    };
+
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    let currentObjectId = null;
+
+    function showState(state) {
+      ['dashboard', 'emptyState', 'errorState'].forEach(id => {
+        document.getElementById(id).style.display = id === state ? 'block' : 'none';
+      });
+    }
+
+    function setLoading(loading) {
+      $('#searchBtn').disabled = loading;
+      $('#searchBtn').textContent = loading ? 'Loading…' : 'Load Diagnostics';
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
+    }
+
+    function formatNumber(val, decimals = 6) {
+      if (val === null || val === undefined || val === '') return '—';
+      const num = Number(val);
+      if (isNaN(num)) return '—';
+      return num.toFixed(decimals).replace(/\.?0+$/, '');
+    }
+
+    function renderSgp4(code) {
+      const msg = SGP4_MESSAGES[code] ?? `Unknown code (${code})`;
+      const isOk = code === 0;
+      $('#sgp4Code').textContent = code ?? '—';
+      $('#sgp4StatusText').innerHTML = `<span class="status-badge ${isOk ? 'status-ok' : 'status-danger'}">${isOk ? 'OK' : 'ERROR'}</span> ${msg}`;
+      $('#sgp4Time').textContent = formatDate(new Date().toISOString());
+    }
+
+    function renderStaleness(staleness) {
+      if (!staleness) {
+        $('#stalenessAge').textContent = '—';
+        $('#stalenessState').innerHTML = '<span class="status-badge status-neutral">NO DATA</span>';
+        $('#stalenessFetched').textContent = '—';
+        return;
+      }
+      const { age_hours, threshold_hours, is_stale } = staleness;
+      $('#stalenessAge').textContent = `${age_hours.toFixed(2)} hours`;
+      $('#stalenessThreshold').textContent = `${threshold_hours} hours`;
+      $('#stalenessState').innerHTML = `<span class="status-badge ${is_stale ? 'status-warn' : 'status-ok'}">${is_stale ? 'STALE' : 'FRESH'}</span>`;
+    }
+
+    function renderElements(row) {
+      if (!row) {
+        $$('#orbitalElements .element-value').forEach(el => { el.textContent = '—'; el.classList.add('empty'); });
+        return;
+      }
+      const map = {
+        elEpoch: row.epoch,
+        elMeanMotion: row.mean_motion,
+        elEccentricity: row.eccentricity,
+        elInclination: row.inclination,
+        elRaan: row.ra_of_asc_node,
+        elArgPeri: row.arg_of_pericenter,
+        elMeanAnomaly: row.mean_anomaly,
+        elBstar: row.bstar,
+        elMeanMotionDot: row.mean_motion_dot,
+        elMeanMotionDDot: row.mean_motion_ddot,
+        elSetNo: row.element_set_no,
+        elRevAtEpoch: row.rev_at_epoch,
+        elSourceId: row.source_id,
+      };
+      Object.entries(map).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (id === 'elEpoch') {
+          el.textContent = val ? formatDate(val) : '—';
+        } else if (id === 'elBstar') {
+          el.textContent = val !== undefined ? formatNumber(val, 8) : '—';
+        } else if (typeof val === 'number') {
+          el.textContent = formatNumber(val);
+        } else {
+          el.textContent = val ?? '—';
+        }
+        el.classList.toggle('empty', val === undefined || val === null || val === '');
+      });
+    }
+
+    function renderHistory(history) {
+      const container = $('#historyContent');
+      if (!history || history.length === 0) {
+        container.innerHTML = '<div class="empty-state"><h3>No ingestion history</h3><p>No orbital element records found for this object</p></div>';
+        $('#historyCount').textContent = '';
+        return;
+      }
+      $('#historyCount').textContent = `(${history.length} records)`;
+      const rows = history.map((h, i) => {
+        const srcClass = SOURCE_CLASSES[(h.source_id || '').toLowerCase()] || 'source-unknown';
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td><span class="source-badge ${srcClass}">${h.source_id || 'unknown'}</span></td>
+            <td>${formatDate(h.epoch)}</td>
+            <td>${formatDate(h.fetched_at)}</td>
+          </tr>
+        `;
+      }).join('');
+      container.innerHTML = `
+        <table class="history-table">
+          <thead><tr><th>#</th><th>Source</th><th>Epoch</th><th>Fetched At</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    async function fetchDiagnostics(objectId) {
+      setLoading(true);
+      showState('dashboard');
+      try {
+        const res = await fetch(`${API_BASE}/objects/${objectId}/diagnostics`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        renderSgp4(data.sgp4_error_code);
+        renderStaleness(data.staleness);
+        renderElements(data.raw_latest_row);
+        renderHistory(data.ingestion_history);
+      } catch (e) {
+        $('#errorMsg').textContent = e.message;
+        showState('errorState');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    $('#searchBtn').addEventListener('click', () => {
+      const val = $('#objectId').value.trim();
+      if (!val) return;
+      const id = parseInt(val, 10);
+      if (isNaN(id) || id < 1) return;
+      currentObjectId = id;
+      $('#clearBtn').style.display = 'inline-flex';
+      fetchDiagnostics(id);
+    });
+
+    $('#clearBtn').addEventListener('click', () => {
+      currentObjectId = null;
+      $('#objectId').value = '';
+      $('#clearBtn').style.display = 'none';
+      showState('emptyState');
+    });
+
+    $('#retryBtn').addEventListener('click', () => {
+      if (currentObjectId) fetchDiagnostics(currentObjectId);
+    });
+
+    $('#objectId').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') $('#searchBtn').click();
+    });
+
+    showState('emptyState');
+  </script>
+</body>
+</html>
