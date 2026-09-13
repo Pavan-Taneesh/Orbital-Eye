@@ -5,7 +5,9 @@ compute position/velocity/altitude at a requested UTC datetime.
 Usage (standalone test):
     python logic/propagate.py <object_id>
 """
-
+from astropy import units as u
+from astropy.coordinates import TEME, ITRS, CartesianDifferential, CartesianRepresentation
+from astropy.time import Time
 import sys
 import math
 from datetime import datetime, timezone
@@ -82,16 +84,35 @@ def build_satellite(row):
     )
     return sat
 
+def teme_to_ecef(position_km, velocity_km_s, when: datetime):
+    """
+    Convert TEME position/velocity (km, km/s) to ECEF (ITRS) at a given UTC time.
+    Uses astropy's built-in ITRS frame as the Earth-fixed target (ITRF-equivalent, IAU-standard).
+    """
+    t = Time(when)
+
+    cart = CartesianRepresentation(*position_km, unit=u.km)
+    cart_vel = CartesianDifferential(*velocity_km_s, unit=u.km / u.s)
+    cart = cart.with_differentials(cart_vel)
+
+    teme = TEME(cart, obstime=t)
+    itrs = teme.transform_to(ITRS(obstime=t))
+
+    pos = itrs.cartesian.xyz.to(u.km).value
+    vel = itrs.cartesian.differentials['s'].d_xyz.to(u.km / u.s).value
+
+    return tuple(pos), tuple(vel)
 
 def propagate(sat: Satrec, when: datetime):
-    """Propagate to a given UTC datetime. Returns (position_km, velocity_km_s, altitude_km)."""
+    """Propagate to a given UTC datetime. Returns (position_km, velocity_km_s, altitude_km) in ECEF/ITRS."""
     jd, fr = jday(when.year, when.month, when.day,
                   when.hour, when.minute, when.second + when.microsecond / 1e6)
-    error, position, velocity = sat.sgp4(jd, fr)
+    error, position_teme, velocity_teme = sat.sgp4(jd, fr)
     if error != 0:
         raise RuntimeError(f"SGP4 propagation error code {error}")
 
-    # altitude approx: distance from Earth's center minus mean Earth radius
+    position, velocity = teme_to_ecef(position_teme, velocity_teme, when)
+
     earth_radius_km = 6371.0
     r = math.sqrt(sum(c ** 2 for c in position))
     altitude_km = r - earth_radius_km
