@@ -54,29 +54,31 @@ jobs:
 
       - name: Run mypy type checking
         run: mypy .
-
+        
   test:
-    name: Backend Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
+     name: Backend Tests
+     runs-on: ubuntu-latest
+     defaults:
+       run:
         working-directory: backend
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+     env:
+       PYTHONPATH: ${{ github.workspace }}
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+       - name: Set up Python
+         uses: actions/setup-python@v5
+         with:
+           python-version: "3.12"
 
-      - name: Install dependencies
-        run: |
+       - name: Install dependencies
+         run: |
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio httpx astropy
 
-      - name: Run backend tests
-        run: pytest -m "not integration" --cov=./logic -v
+       - name: Run backend tests
+         run: pytest -m "not integration" --cov=./logic -v
 
   build:
     name: Production Build
