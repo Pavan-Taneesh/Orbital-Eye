@@ -24,7 +24,7 @@ def get_latest_elements(object_id: int):
         host="localhost",
         dbname="project_db",
         user="postgres",
-        password="pavan@2805",
+        password="SpaceDB@2026",
     )
     cur = conn.cursor()
     cur.execute(
