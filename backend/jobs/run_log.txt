@@ -37,3 +37,51 @@ IndentationError: expected an indented block after 'for' statement on line 64
 [2026-08-14T00:44:21.454884] Running logic/resolve_conflicts.py...
 [2026-08-14T00:44:24.781406] logic/resolve_conflicts.py SUCCESS
 [2026-08-14T00:44:24.782179] === Run complete ===
+[2026-09-11T23:34:05.171539] === Starting full ingestion run ===
+[2026-09-11T23:34:05.172523] Running ingestion/celestrak.py...
+[2026-09-11T23:34:05.822498] ingestion/celestrak.py FAILED — Traceback (most recent call last):
+  File "C:\Users\Administrator\Space-website\backend\ingestion\celestrak.py", line 5, in <module>
+    conn = psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+    ...<2 lines>...
+        password=os.getenv("DB_PASSWORD", ""),
+    )
+  File "C:\Users\
+[2026-09-11T23:34:05.827585] Running ingestion/satnogs.py...
+[2026-09-11T23:34:06.264043] ingestion/satnogs.py FAILED — Traceback (most recent call last):
+  File "C:\Users\Administrator\Space-website\backend\ingestion\satnogs.py", line 8, in <module>
+    conn = psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+    ...<2 lines>...
+        password=os.getenv("DB_PASSWORD", ""),
+    )
+  File "C:\Users\Ad
+[2026-09-11T23:34:06.264881] Running ingestion/spacetrack.py...
+[2026-09-11T23:34:30.914411] ingestion/spacetrack.py SUCCESS
+[2026-09-11T23:34:30.915078] Running ingestion/discos.py...
+[2026-09-11T23:44:27.775544] ingestion/discos.py FAILED — Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+  File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.p
+[2026-09-11T23:44:27.776604] Running logic/resolve_conflicts.py...
+[2026-09-11T23:44:33.879225] logic/resolve_conflicts.py SUCCESS
+[2026-09-11T23:44:33.879876] === Run complete ===
+[2026-09-11T23:53:15.066004] === Starting full ingestion run ===
+[2026-09-11T23:53:15.066997] Running ingestion/celestrak.py...
+[2026-09-11T23:53:46.821479] ingestion/celestrak.py SUCCESS
+[2026-09-11T23:53:46.822258] Running ingestion/satnogs.py...
+[2026-09-11T23:53:47.234011] ingestion/satnogs.py FAILED — Traceback (most recent call last):
+  File "C:\Users\Administrator\Space-website\backend\ingestion\satnogs.py", line 26, in <module>
+    url = API_URL
+          ^^^^^^^
+NameError: name 'API_URL' is not defined
+[2026-09-11T23:53:47.234870] Running ingestion/spacetrack.py...
+[2026-09-11T23:54:12.206409] ingestion/spacetrack.py SUCCESS
+[2026-09-11T23:54:12.207504] Running ingestion/discos.py...
+[2026-09-12T00:38:06.723215] ingestion/discos.py FAILED — Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+  File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.p
+[2026-09-12T00:38:06.724045] Running logic/resolve_conflicts.py...
+[2026-09-12T00:38:11.044187] logic/resolve_conflicts.py SUCCESS
+[2026-09-12T00:38:11.044863] === Run complete ===

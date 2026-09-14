@@ -20,7 +20,7 @@ def connect():
         host="localhost",
         dbname="project_db",
         user="postgres",
-        password="pavan@2805",
+        password="SpaceDB@2026",
     )
 
 

@@ -14,8 +14,6 @@ load_dotenv()
 sys.path.insert(0, str(Path(__file__).resolve().parent / "logic"))
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-
 from fastapi.middleware.cors import CORSMiddleware
 
 from schemas import (
@@ -31,7 +29,9 @@ app = FastAPI(title="Space-website API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")],
+    allow_origins=[
+        os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,10 +59,16 @@ def health_check():
 # ---------------------------------------------------------------------------
 
 @app.get("/api/v1/objects/search", response_model=PaginatedResponse)
-def search_objects(q: str = "", category: int = None, limit: int = 20, offset: int = 0):
+def search_objects(
+    q: str = "",
+    category: int = None,
+    limit: int = 20,
+    offset: int = 0,
+):
     """GET /api/v1/objects/search
 
-    Application-level orchestration delegated to object_service.search_objects.
+    Application-level orchestration delegated to
+    object_service.search_objects.
 
     Args:
         q: Case-insensitive match against object name
@@ -75,15 +81,25 @@ def search_objects(q: str = "", category: int = None, limit: int = 20, offset: i
     """
     from services import search_objects as _search
 
-    data = _search(q=q, category=category, limit=limit, offset=offset)
+    data = _search(
+        q=q,
+        category=category,
+        limit=limit,
+        offset=offset,
+    )
     return data
 
 
 @app.get("/api/v1/objects", response_model=PaginatedResponse)
-def list_objects(category: int = None, limit: int = 20, offset: int = 0):
+def list_objects(
+    category: int = None,
+    limit: int = 20,
+    offset: int = 0,
+):
     """GET /api/v1/objects
 
-    Application-level orchestration delegated to object_service.list_objects.
+    Application-level orchestration delegated to
+    object_service.list_objects.
 
     Args:
         category: Optional filter by category_id (1-7)
@@ -95,7 +111,11 @@ def list_objects(category: int = None, limit: int = 20, offset: int = 0):
     """
     from services import list_objects as _list
 
-    data = _list(category=category, limit=limit, offset=offset)
+    data = _list(
+        category=category,
+        limit=limit,
+        offset=offset,
+    )
     return data
 
 
@@ -107,7 +127,8 @@ def list_objects(category: int = None, limit: int = 20, offset: int = 0):
 def get_object(object_id: int):
     """GET /api/v1/objects/{object_id}
 
-    Application-level orchestration delegated to object_service.get_object.
+    Application-level orchestration delegated to
+    object_service.get_object.
 
     Args:
         object_id: Positive object identifier
@@ -124,7 +145,11 @@ def get_object(object_id: int):
     try:
         data = _get_obj(object_id=object_id)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
     return data
 
 
@@ -132,11 +157,15 @@ def get_object(object_id: int):
 # Orbital state
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/objects/{object_id}/state", response_model=StateResponse)
+@app.get(
+    "/api/v1/objects/{object_id}/state",
+    response_model=StateResponse,
+)
 def get_object_state(object_id: int):
     """GET /api/v1/objects/{object_id}/state
 
-    Application-level orchestration delegated to state_service.state_service.
+    Application-level orchestration delegated to
+    state_service.state_service.
 
     Args:
         object_id: Positive object identifier
@@ -155,11 +184,15 @@ def get_object_state(object_id: int):
 # Diagnostics
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/objects/{object_id}/diagnostics", response_model=DiagnosticsResponse)
+@app.get(
+    "/api/v1/objects/{object_id}/diagnostics",
+    response_model=DiagnosticsResponse,
+)
 def get_object_diagnostics(object_id: int):
     """GET /api/v1/objects/{object_id}/diagnostics
 
-    Application-level orchestration delegated to diagnostics_service.diagnostics_service.
+    Application-level orchestration delegated to
+    diagnostics_service.diagnostics_service.
 
     Args:
         object_id: Positive object identifier
@@ -178,11 +211,15 @@ def get_object_diagnostics(object_id: int):
 # Media
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/objects/{object_id}/media", response_model=MediaResponse)
+@app.get(
+    "/api/v1/objects/{object_id}/media",
+    response_model=MediaResponse,
+)
 def get_object_media(object_id: int):
     """GET /api/v1/objects/{object_id}/media
 
-    Application-level orchestration delegated to object_service.get_object_media.
+    Application-level orchestration delegated to
+    object_service.get_object_media.
 
     Args:
         object_id: Positive object identifier
@@ -198,5 +235,9 @@ def get_object_media(object_id: int):
     try:
         data = _get_media(object_id=object_id)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
     return data
