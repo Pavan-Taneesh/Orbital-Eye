@@ -1,0 +1,2976 @@
+/* ============================================================
+   ORBITAL EYE — GLOBAL / CANVAS LAYOUT
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;600&display=swap');
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+html {
+  background: #01050d;
+}
+
+body {
+  background: #01050d;
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* ============================================================
+   MAIN EARTH EXPERIENCE
+   ============================================================ */
+
+.earth-experience {
+  position: relative;
+
+  width: 100vw;
+  height: 100vh;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(12, 31, 48, 0.18),
+      transparent 50%
+    ),
+    #01050d;
+}
+
+/* ============================================================
+   THREE.JS CANVAS
+   ============================================================ */
+
+.earth-experience > canvas {
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  display: block;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  margin: 0;
+  padding: 0;
+
+  outline: none;
+
+  touch-action: none;
+}
+
+/* ============================================================
+   VIGNETTE
+   ============================================================ */
+
+.earth-vignette {
+  position: absolute;
+
+  inset: 0;
+
+  z-index: 2;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      transparent 48%,
+      rgba(0, 3, 8, 0.16) 72%,
+      rgba(0, 2, 6, 0.55) 100%
+    );
+}
+
+/* ============================================================
+   HUD
+   ============================================================ */
+
+.earth-hud {
+  position: absolute;
+
+  top: 25px;
+  left: 28px;
+  right: 28px;
+
+  z-index: 10;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  pointer-events: none;
+
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  line-height: 1;
+
+  color: rgba(205, 224, 238, 0.48);
+
+  text-transform: uppercase;
+
+  opacity: 0;
+  animation: earth-hud-fade-in 1.1s ease forwards;
+}
+
+.earth-hud span {
+  white-space: nowrap;
+}
+
+@keyframes earth-hud-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   CONTROLS HINT
+   ============================================================ */
+
+.earth-controls-hint {
+  position: absolute;
+
+  left: 50%;
+  bottom: 25px;
+
+  z-index: 10;
+
+  transform: translateX(-50%);
+
+  pointer-events: none;
+
+  white-space: nowrap;
+
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+
+  color: rgba(205, 224, 238, 0.35);
+
+  text-transform: uppercase;
+
+  opacity: 0;
+  animation: earth-controls-hint-fade-in 1.1s ease 0.3s forwards;
+}
+
+@keyframes earth-controls-hint-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ============================================================
+   LOADING SCREEN
+   ============================================================ */
+
+.earth-loading {
+  position: absolute;
+
+  inset: 0;
+
+  z-index: 30;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(4, 16, 26, 0.72),
+      rgba(1, 5, 13, 0.94) 65%,
+      #01050d 100%
+    );
+}
+
+.earth-loading-line {
+  width: 70px;
+  height: 1px;
+
+  margin-bottom: 20px;
+
+  background: rgba(173, 215, 239, 0.55);
+
+  transform-origin: center;
+
+  animation:
+    earth-loading-line 1.2s ease-in-out infinite;
+}
+
+.earth-loading-title {
+  margin-bottom: 8px;
+
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+
+  color: rgba(225, 239, 248, 0.82);
+}
+
+.earth-loading-subtitle {
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+
+  color: rgba(173, 201, 218, 0.42);
+}
+
+/* ============================================================
+   LOADING ANIMATION
+   ============================================================ */
+
+@keyframes earth-loading-line {
+  0%,
+  100% {
+    transform: scaleX(0.35);
+    opacity: 0.35;
+  }
+
+  50% {
+    transform: scaleX(1);
+    opacity: 0.85;
+  }
+}
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media (max-width: 700px) {
+  .earth-hud {
+    top: 18px;
+    left: 18px;
+    right: 18px;
+
+    font-size: 7px;
+    letter-spacing: 0.16em;
+  }
+
+  .earth-controls-hint {
+    bottom: 18px;
+
+    font-size: 7px;
+    letter-spacing: 0.12em;
+  }
+
+  .earth-loading-title {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+  }
+
+  .earth-loading-subtitle {
+    font-size: 7px;
+    letter-spacing: 0.14em;
+  }
+}
+
+/* ============================================================
+   SMALL MOBILE
+   ============================================================ */
+
+@media (max-width: 420px) {
+  .earth-hud {
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 7px;
+  }
+
+  .earth-controls-hint {
+    font-size: 6px;
+  }
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .earth-loading-line {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   INTRO — ORBITAL EYE WORDMARK
+   ============================================================ */
+
+.earth-canvas-wrap {
+  position: fixed;
+  inset: 0;
+}
+
+.earth-reveal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: #01050d;
+  opacity: 1;
+  pointer-events: none;
+  /* Fades out FAST — this only exists to cover the one-frame white
+     flash before the canvas paints. It must finish well before the
+     starfield's own opacity fade below, otherwise the two fades
+     overlap and the stars look like they "drop in" abruptly partway
+     through instead of one continuous smooth fade. */
+  animation: earth-reveal-mask-fade 0.4s ease forwards;
+}
+
+@keyframes earth-reveal-mask-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.intro-wordmark.is-loading .intro-hint {
+  opacity: 0.4;
+  animation: none;
+}
+
+.intro-wordmark.is-loading {
+  cursor: default;
+}
+
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+
+.intro-overlay.is-entered {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-overlay.is-entered .intro-wordmark {
+  /* This was the real bug behind "can't move the earth for a few
+     seconds" / "can't drag when cursor is over the earth": the
+     wordmark sits centered exactly over the Earth, and it kept
+     pointer-events:auto for its whole 1s opacity fade-out, so every
+     drag right where the Earth is got eaten by this invisible layer
+     instead of reaching OrbitControls. Kill pointer events on it the
+     instant we enter, don't wait for the fade to finish. */
+  pointer-events: none;
+}
+
+.intro-wordmark {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  animation: intro-fade-in 1.2s ease forwards;
+  transition: opacity 0.8s ease;
+}
+
+.intro-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 500;
+  font-size: clamp(28px, 6vw, 56px);
+  letter-spacing: clamp(0.18em, 1vw, 0.32em);
+  color: #ffffff;
+  text-shadow:
+    0 0 6px rgba(255, 255, 255, 0.95),
+    0 0 16px rgba(255, 255, 255, 0.85),
+    0 0 32px rgba(255, 255, 255, 0.5),
+    0 0 56px rgba(160, 215, 255, 0.3);
+  white-space: nowrap;
+  text-align: center;
+}
+
+.intro-wordmark:hover .intro-title {
+  filter: brightness(1.15) drop-shadow(0 0 14px rgba(255, 255, 255, 0.6));
+}
+
+.intro-hint {
+  margin-top: clamp(14px, 2.5vw, 22px);
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(9px, 1.4vw, 12px);
+  letter-spacing: 0.28em;
+  color: #6f8aa3;
+  white-space: nowrap;
+  opacity: 0;
+  animation: intro-hint-fade 0.9s ease 1.5s forwards, intro-hint-pulse 2.4s ease-in-out 2.4s infinite;
+}
+
+@keyframes intro-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-hint-fade {
+  from { opacity: 0; }
+  to { opacity: 0.85; }
+}
+
+@keyframes intro-hint-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.35; }
+}
+
+.intro-hint-mobile {
+  display: none;
+}
+
+@media (max-width: 700px), (pointer: coarse) {
+  .intro-hint-desktop {
+    display: none;
+  }
+  .intro-hint-mobile {
+    display: inline;
+  }
+}
+
+@media (max-width: 480px) {
+  .intro-title {
+    letter-spacing: 0.16em;
+  }
+
+  .intro-hint {
+    white-space: normal;
+    max-width: 260px;
+    text-align: center;
+  }
+}
+
+/* ============================================================
+   APP LOGO — top-left, bigger, glowing, Orbitron
+   (replaces the old tiny earth-hud text)
+   ============================================================ */
+
+.app-logo {
+  position: fixed;
+  top: 26px;
+  left: 28px;
+  z-index: 20;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 500;
+  font-size: clamp(15px, 1.8vw, 21px);
+  letter-spacing: 0.22em;
+  color: #ffffff;
+
+  text-shadow:
+    0 0 5px rgba(255, 255, 255, 0.9),
+    0 0 14px rgba(255, 255, 255, 0.7),
+    0 0 30px rgba(160, 215, 255, 0.35);
+
+  pointer-events: none;
+  user-select: none;
+
+  opacity: 0;
+  animation: earth-hud-fade-in 1.1s ease forwards;
+}
+
+/* Orbital-eye mark: a ringed pupil that drifts slightly, echoing the
+   satellite orbits in miniature right next to the wordmark. */
+.app-logo-eye {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.app-logo-eye svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.app-logo-eye .eye-ring {
+  fill: none;
+  stroke: rgba(160, 215, 255, 0.55);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+  animation: app-logo-ring-spin 9s linear infinite;
+}
+
+.app-logo-eye .eye-ring-outer {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-dasharray: 2 7;
+  animation-duration: 16s;
+  animation-direction: reverse;
+}
+
+.app-logo-eye .eye-pupil {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 10px rgba(160, 215, 255, 0.7));
+}
+
+.app-logo-eye .eye-orbiter {
+  fill: #4fd3ff;
+  filter: drop-shadow(0 0 3px rgba(79, 211, 255, 0.9));
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+  animation: app-logo-orbiter-spin 4.5s linear infinite;
+}
+
+@keyframes app-logo-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes app-logo-orbiter-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   TOP SEARCH BAR
+   ============================================================ */
+
+.top-bar {
+  position: fixed;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+
+  display: flex;
+  justify-content: center;
+
+  opacity: 0;
+  animation: earth-hud-fade-in 1.1s ease 0.15s forwards;
+}
+
+.satellite-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 10px;
+  border-radius: 6px;
+
+  background: rgba(6, 14, 24, 0.7);
+  border: 1px solid rgba(160, 200, 230, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.satellite-search input {
+  width: clamp(140px, 22vw, 240px);
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e7f1fa;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.satellite-search input::placeholder {
+  color: rgba(190, 210, 225, 0.4);
+}
+
+.satellite-search button[type='submit'] {
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(140, 205, 255, 0.4);
+  background: rgba(79, 211, 255, 0.12);
+  color: #bfe8ff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.satellite-search button[type='submit']:hover {
+  background: rgba(79, 211, 255, 0.24);
+  border-color: rgba(160, 220, 255, 0.7);
+}
+
+.satellite-search .clear-btn {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cfe0ee;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.satellite-search .search-not-found {
+  font-size: 10px;
+  color: #ff8a8a;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   SIDE PANELS — crystal glass boxes (Exploration + AI Assistant)
+   ------------------------------------------------------------
+   Both panels are floating, rounded "crystal" cards rather than
+   full-height docked bars: a soft glass fill, a bright bevel-like
+   border, and a faint inner glow so they read as translucent
+   panes floating above the globe instead of opaque UI chrome.
+   ============================================================ */
+
+.side-panel {
+  position: fixed;
+  top: 78px;
+  bottom: 84px;
+  z-index: 25;
+
+  width: 272px;
+  max-height: calc(100vh - 162px);
+
+  display: flex;
+  flex-direction: column;
+
+  border-radius: 18px;
+  overflow: hidden;
+
+  background:
+    linear-gradient(160deg, rgba(120, 190, 255, 0.1), rgba(20, 40, 60, 0.05) 40%, rgba(6, 14, 24, 0.28) 100%),
+    rgba(8, 18, 30, 0.42);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+
+  border: 1px solid rgba(180, 220, 255, 0.22);
+  box-shadow:
+    0 8px 32px rgba(0, 8, 20, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 40px rgba(120, 200, 255, 0.05);
+
+  opacity: 0;
+  animation: earth-hud-fade-in 1.1s ease 0.2s forwards, crystal-panel-sheen 7s ease-in-out 1.4s infinite;
+}
+
+/* A slow, subtle diagonal sheen sweeping across the glass — the thing
+   that sells "crystal" rather than flat frosted glass. */
+.side-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.06) 55%,
+    transparent 70%
+  );
+  background-size: 240% 240%;
+  background-position: 0% 0%;
+  animation: crystal-panel-sheen-sweep 9s ease-in-out 1.6s infinite;
+}
+
+.side-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes crystal-panel-sheen-sweep {
+  0%, 100% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+}
+
+@keyframes crystal-panel-sheen {
+  0%, 100% {
+    box-shadow:
+      0 8px 32px rgba(0, 8, 20, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 0 40px rgba(120, 200, 255, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 8px 36px rgba(0, 8, 20, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 0 48px rgba(120, 200, 255, 0.09);
+  }
+}
+
+.sidebar-panel {
+  left: 28px;
+}
+
+.ai-panel {
+  right: 28px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px 18px 13px;
+
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  color: rgba(210, 228, 240, 0.8);
+
+  border-bottom: 1px solid rgba(150, 195, 225, 0.16);
+  background: linear-gradient(180deg, rgba(140, 200, 255, 0.07), transparent);
+}
+
+.panel-mobile-close {
+  display: none;
+  background: none;
+  border: none;
+  color: rgba(210, 228, 240, 0.7);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 6px 20px;
+}
+
+.panel-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: rgba(150, 195, 225, 0.25);
+  border-radius: 3px;
+}
+
+/* ============================================================
+   EXPLORATION — categories + dummy satellites
+   ============================================================ */
+
+.category-group {
+  margin-bottom: 4px;
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  transition: background 0.15s ease;
+}
+
+.category-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.category-row input[type='checkbox'] {
+  accent-color: #4fd3ff;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.cat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cat-name {
+  flex: 1;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: #dce8f2;
+}
+
+.cat-count {
+  font-size: 10px;
+  color: rgba(200, 218, 232, 0.45);
+}
+
+.satellite-sublist {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0 8px 30px;
+}
+
+.satellite-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+
+  color: rgba(205, 220, 232, 0.72);
+  font-size: 11.5px;
+  text-align: left;
+  letter-spacing: 0.02em;
+
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.satellite-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #eef5fb;
+}
+
+.satellite-item.is-selected {
+  background: rgba(79, 211, 255, 0.12);
+  color: #bfe8ff;
+}
+
+.sat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   AI ASSISTANT PANEL
+   ============================================================ */
+
+.ai-messages {
+  flex: 1;
+  overflow-y: auto;
+
+  padding: 14px 16px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-msg {
+  padding: 10px 12px;
+  border-radius: 8px;
+
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.ai-msg-assistant {
+  background: rgba(79, 211, 255, 0.08);
+  border: 1px solid rgba(79, 211, 255, 0.18);
+  color: #d6ecf9;
+}
+
+.ai-msg-user {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e9eff5;
+  align-self: flex-end;
+}
+
+.ai-input-row {
+  display: flex;
+  gap: 8px;
+
+  padding: 12px 14px 16px;
+  border-top: 1px solid rgba(150, 195, 225, 0.12);
+}
+
+.ai-input-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(150, 195, 225, 0.18);
+  border-radius: 6px;
+
+  padding: 8px 10px;
+
+  color: #e7f1fa;
+  font-size: 12px;
+  outline: none;
+}
+
+.ai-input-row input::placeholder {
+  color: rgba(190, 210, 225, 0.4);
+}
+
+.ai-input-row button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(140, 205, 255, 0.4);
+  background: rgba(79, 211, 255, 0.14);
+  color: #bfe8ff;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+/* ============================================================
+   SATELLITE INFO CARD — small floating box shown on selection
+   ============================================================ */
+
+.satellite-info-card {
+  min-width: 168px;
+  padding: 10px 12px;
+  border-radius: 10px;
+
+  background:
+    linear-gradient(160deg, rgba(120, 190, 255, 0.14), rgba(6, 14, 24, 0.4)),
+    rgba(6, 14, 24, 0.72);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(180, 220, 255, 0.3);
+  box-shadow: 0 6px 22px rgba(0, 8, 20, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: #dce8f2;
+  white-space: nowrap;
+
+  transform: translateY(-26px);
+  animation: info-card-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes info-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-26px) scale(1);
+  }
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(150, 195, 225, 0.18);
+}
+
+.info-card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.info-card-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: #f3f8fc;
+}
+
+.info-card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 0;
+  color: rgba(205, 220, 232, 0.85);
+}
+
+.info-card-row span:first-child {
+  color: rgba(180, 200, 216, 0.55);
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .satellite-info-card {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   MOBILE TOGGLES for the two side panels
+   ============================================================ */
+
+.mobile-toggle {
+  display: none;
+  position: fixed;
+  z-index: 22;
+  top: 68px;
+
+  padding: 8px 12px;
+  border-radius: 6px;
+
+  background: rgba(6, 14, 24, 0.75);
+  border: 1px solid rgba(160, 200, 230, 0.2);
+  backdrop-filter: blur(10px);
+
+  color: #dce8f2;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.mobile-toggle-left {
+  left: 18px;
+}
+
+.mobile-toggle-right {
+  right: 18px;
+}
+
+/* ============================================================
+   MOBILE LAYOUT — side panels become slide-in drawers
+   ============================================================ */
+
+@media (max-width: 820px) {
+  .side-panel {
+    top: 14px;
+    bottom: 14px;
+    width: min(86vw, 320px);
+    max-height: none;
+    border-radius: 20px;
+    transition: transform 0.3s ease;
+    z-index: 40;
+  }
+
+  .sidebar-panel {
+    left: 14px;
+    transform: translateX(-115%);
+  }
+
+  .sidebar-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .ai-panel {
+    right: 14px;
+    transform: translateX(115%);
+  }
+
+  .ai-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .panel-mobile-close {
+    display: block;
+  }
+
+  .mobile-toggle {
+    display: block;
+  }
+
+  .top-bar {
+    top: auto;
+    bottom: 18px;
+    left: 50%;
+  }
+
+  .satellite-search input {
+    width: 46vw;
+  }
+
+  .app-logo {
+    top: 16px;
+    left: 18px;
+    font-size: 16px;
+  }
+}
+
+/* ============================================================
+   TRANSITION / ANIMATION POLISH PASS
+   ============================================================ */
+
+/* Softer, slightly springy easing for the drawers instead of flat ease */
+@media (max-width: 820px) {
+  .side-panel {
+    transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* Logo: subtle breathing glow so it doesn't sit static */
+.app-logo {
+  animation:
+    earth-hud-fade-in 1.1s ease forwards,
+    app-logo-breathe 4.5s ease-in-out 1.2s infinite;
+}
+
+@keyframes app-logo-breathe {
+  0%, 100% {
+    text-shadow:
+      0 0 5px rgba(255, 255, 255, 0.9),
+      0 0 14px rgba(255, 255, 255, 0.7),
+      0 0 30px rgba(160, 215, 255, 0.35);
+  }
+  50% {
+    text-shadow:
+      0 0 7px rgba(255, 255, 255, 1),
+      0 0 20px rgba(255, 255, 255, 0.85),
+      0 0 42px rgba(160, 215, 255, 0.5);
+  }
+}
+
+/* Search bar: focus glow + button press feedback */
+.satellite-search {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.satellite-search:focus-within {
+  border-color: rgba(140, 205, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(79, 211, 255, 0.12), 0 0 18px rgba(79, 211, 255, 0.15);
+}
+
+.satellite-search button[type='submit'] {
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+}
+
+.satellite-search button[type='submit']:active {
+  transform: scale(0.94);
+}
+
+.satellite-search .clear-btn {
+  animation: chip-pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+}
+
+.satellite-search .clear-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.satellite-search .clear-btn:active {
+  transform: scale(0.94);
+}
+
+.satellite-search .search-not-found {
+  animation: chip-pop-in 0.22s ease;
+}
+
+@keyframes chip-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Category rows: slide-in stagger + nicer hover */
+.category-group {
+  animation: category-row-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.category-group:nth-child(1) { animation-delay: 0.04s; }
+.category-group:nth-child(2) { animation-delay: 0.09s; }
+.category-group:nth-child(3) { animation-delay: 0.14s; }
+.category-group:nth-child(4) { animation-delay: 0.19s; }
+.category-group:nth-child(5) { animation-delay: 0.24s; }
+
+@keyframes category-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.category-row {
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.category-row:hover {
+  transform: translateX(2px);
+}
+
+.category-row input[type='checkbox'] {
+  transition: transform 0.12s ease;
+}
+
+.category-row input[type='checkbox']:active {
+  transform: scale(0.85);
+}
+
+/* Satellite sublist: fade/slide in as a whole when category opens */
+.satellite-sublist {
+  animation: satellite-sublist-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes satellite-sublist-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.satellite-item {
+  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease, padding-left 0.16s ease;
+}
+
+.satellite-item:hover {
+  transform: translateX(3px);
+}
+
+.satellite-item.is-selected {
+  animation: satellite-item-select-pulse 0.4s ease;
+}
+
+@keyframes satellite-item-select-pulse {
+  0% { background: rgba(79, 211, 255, 0.32); }
+  100% { background: rgba(79, 211, 255, 0.12); }
+}
+
+/* Mobile toggle buttons: press feedback */
+.mobile-toggle {
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+}
+
+.mobile-toggle:active {
+  transform: scale(0.95);
+}
+
+/* AI panel: message bubbles ease in, send button press feedback */
+.ai-msg {
+  animation: ai-msg-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ai-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-input-row input {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-input-row input:focus {
+  border-color: rgba(140, 205, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(79, 211, 255, 0.12);
+  outline: none;
+}
+
+.ai-input-row button {
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+}
+
+.ai-input-row button:active {
+  transform: scale(0.94);
+}
+
+/* Panel headers: subtle underline sweep on load */
+.panel-header {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(140, 205, 255, 0.6), transparent);
+  transform: translateX(-100%);
+  animation: panel-header-sweep 1.4s ease 0.3s forwards;
+}
+
+@keyframes panel-header-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-logo,
+  .app-logo-eye .eye-ring,
+  .app-logo-eye .eye-orbiter,
+  .category-group,
+  .satellite-sublist,
+  .satellite-item.is-selected,
+  .ai-msg,
+  .panel-header::after,
+  .satellite-search .clear-btn,
+  .satellite-search .search-not-found,
+  .side-panel,
+  .side-panel::before,
+  .satellite-info-card {
+    animation: none !important;
+  }
+}
+/* ============================================================
+   ORBITAL EYE — FINAL UI POLISH / PERFORMANCE OVERRIDES
+   These overrides intentionally preserve the original stylesheet
+   above; only the final presentation layer is changed here.
+   ============================================================ */
+
+.side-panel {
+  top: 88px;
+  bottom: auto;
+  width: 224px;
+  max-height: min(58vh, 520px);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(5, 14, 25, 0.94), rgba(3, 9, 18, 0.9));
+  border: 1px solid rgba(126, 188, 230, 0.24);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255,255,255,0.06);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: orbital-panel-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.side-panel::before {
+  display: none;
+}
+
+.sidebar-panel {
+  left: 22px;
+}
+
+.panel-header {
+  min-height: 42px;
+  padding: 12px 13px 10px;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  background: linear-gradient(90deg, rgba(86, 180, 235, 0.08), transparent 70%);
+  border-bottom: 1px solid rgba(126, 188, 230, 0.14);
+}
+
+.panel-scroll {
+  padding: 7px 5px 12px;
+  scrollbar-width: thin;
+}
+
+.category-group {
+  margin-bottom: 2px;
+}
+
+.category-row {
+  gap: 7px;
+  padding: 7px 8px;
+  border-radius: 6px;
+}
+
+.category-row input[type='checkbox'] {
+  width: 12px;
+  height: 12px;
+}
+
+.cat-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.cat-name {
+  font-size: 10px;
+}
+
+.cat-count {
+  font-size: 8px;
+}
+
+.satellite-sublist {
+  padding: 1px 0 6px 25px;
+}
+
+.satellite-item {
+  gap: 6px;
+  padding: 5px 7px;
+  font-size: 9.5px;
+  border-left: 1px solid rgba(120, 195, 235, 0.1);
+}
+
+.sat-dot {
+  width: 4px;
+  height: 4px;
+  box-shadow: 0 0 5px currentColor;
+}
+
+.exploration-search-wrap {
+  padding: 8px 8px 7px;
+  border-bottom: 1px solid rgba(126, 188, 230, 0.1);
+}
+
+.exploration-search-wrap .satellite-search {
+  width: 100%;
+  padding: 5px 6px;
+  gap: 5px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(126, 188, 230, 0.18);
+  box-shadow: inset 0 0 16px rgba(80, 170, 220, 0.025);
+}
+
+.exploration-search-wrap .satellite-search input {
+  width: 100%;
+  min-width: 0;
+  font-size: 9px;
+}
+
+.exploration-search-wrap .satellite-search button[type='submit'] {
+  padding: 5px 8px;
+  font-size: 8px;
+}
+
+.exploration-search-wrap .satellite-search .clear-btn {
+  display: none;
+}
+
+.top-bar {
+  display: none;
+}
+
+.ai-launcher {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 11px 8px 9px;
+  border: 1px solid rgba(145, 211, 247, 0.3);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(8, 21, 34, 0.96), rgba(3, 10, 18, 0.96));
+  color: #e8f7ff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.13em;
+  cursor: pointer;
+  box-shadow: 0 10px 32px rgba(0,0,0,0.4), 0 0 22px rgba(72,190,255,0.08);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.ai-launcher:hover {
+  transform: translateY(-2px);
+  border-color: rgba(180, 230, 255, 0.58);
+  box-shadow: 0 14px 36px rgba(0,0,0,0.44), 0 0 26px rgba(72,190,255,0.15);
+}
+
+.ai-launcher-orb {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 5px #fff, 0 0 12px rgba(110,210,255,0.95);
+  animation: ai-orb-pulse 2.2s ease-in-out infinite;
+}
+
+.ai-launcher-prompt {
+  padding-left: 7px;
+  color: rgba(180, 221, 242, 0.48);
+  font-size: 7px;
+}
+
+.ai-panel {
+  right: 22px;
+  bottom: 72px;
+  top: auto;
+  width: 300px;
+  height: 360px;
+  max-height: min(58vh, 360px);
+  opacity: 0;
+  transform: translateY(14px) scale(0.96);
+  pointer-events: none;
+  animation: none;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ai-panel.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  display: flex;
+}
+
+.ai-panel:not(.is-open) {
+  display: none;
+}
+
+.ai-panel .ai-messages {
+  padding: 11px 12px;
+  gap: 7px;
+}
+
+.ai-panel .ai-msg {
+  padding: 8px 9px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.ai-panel .ai-input-row {
+  padding: 9px 10px 11px;
+}
+
+.ai-panel .ai-input-row input {
+  padding: 7px 8px;
+  font-size: 10px;
+}
+
+.ai-panel .ai-input-row button {
+  padding: 7px 9px;
+  font-size: 8px;
+}
+
+.satellite-info-overlay {
+  position: fixed;
+  left: 22px;
+  bottom: 24px;
+  z-index: 34;
+  min-width: 190px;
+  max-width: 260px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(7,18,29,0.96), rgba(2,8,15,0.94));
+  border: 1px solid rgba(150, 213, 243, 0.28);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.46), 0 0 24px rgba(70,180,230,0.05);
+  backdrop-filter: none;
+  white-space: normal;
+  transform: none;
+  animation: satellite-card-in 0.28s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+.satellite-info-overlay .info-card-header {
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+}
+
+.info-card-close {
+  margin-left: auto;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: rgba(210,230,240,0.5);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.info-card-close:hover {
+  color: #fff;
+}
+
+.satellite-info-overlay .info-card-row {
+  font-size: 9px;
+}
+
+.satellite-info-overlay .info-card-row span:first-child {
+  font-size: 7px;
+}
+
+.mobile-exploration-bar {
+  display: none;
+}
+
+.mobile-toggle {
+  display: none !important;
+}
+
+@keyframes orbital-panel-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes satellite-card-in {
+  from { opacity: 0; transform: translateY(7px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ai-orb-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.78; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+/* Immediate space fallback: the canvas can paint after the browser has
+   already shown this, so the intro never begins on a flat/black frame. */
+.earth-experience {
+  background:
+    radial-gradient(circle at 52% 48%, rgba(20,50,75,0.13), transparent 38%),
+    radial-gradient(circle at 15% 25%, rgba(70,130,180,0.055) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 18%, rgba(150,210,255,0.05) 0 1px, transparent 2px),
+    #01050d;
+}
+
+@media (max-width: 820px) {
+  .app-logo {
+    top: 15px;
+    left: 16px;
+    font-size: 14px;
+  }
+
+  .mobile-exploration-bar {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    top: 52px;
+    left: 14px;
+    right: 14px;
+    z-index: 32;
+    min-height: 34px;
+    padding: 7px 11px;
+    border: 1px solid rgba(135,200,235,0.25);
+    border-radius: 8px;
+    background: linear-gradient(90deg, rgba(6,17,28,0.94), rgba(3,10,18,0.9));
+    color: rgba(230,244,252,0.88);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .mobile-exploration-chevron {
+    font-size: 14px;
+    color: rgba(180,220,240,0.55);
+  }
+
+  .side-panel {
+    top: 98px;
+    bottom: auto;
+    width: min(88vw, 330px);
+    max-height: calc(100vh - 116px);
+    border-radius: 12px;
+  }
+
+  .sidebar-panel {
+    left: 14px;
+    transform: translateX(-115%);
+    transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+  }
+
+  .sidebar-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .ai-launcher {
+    right: 14px;
+    bottom: 16px;
+    min-height: 36px;
+    padding: 8px 10px;
+  }
+
+  .ai-panel {
+    right: 14px;
+    left: 14px;
+    bottom: 62px;
+    width: auto;
+    height: min(54vh, 390px);
+    max-height: min(54vh, 390px);
+    transform: translateY(12px) scale(0.98);
+  }
+
+  .ai-panel.is-open {
+    transform: translateY(0) scale(1);
+  }
+
+  .panel-mobile-close {
+    display: block;
+  }
+
+  .satellite-info-overlay {
+    left: 14px;
+    right: 14px;
+    bottom: 62px;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+  }
+
+  .satellite-info-overlay + * {
+    pointer-events: none;
+  }
+
+  .exploration-search-wrap .satellite-search input {
+    font-size: 10px;
+  }
+
+  .earth-controls-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-launcher-orb,
+  .side-panel,
+  .satellite-info-overlay {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   ORBITAL EYE — AEROSPACE HUD REVISION
+   Layered over the preserved stylesheet.  No original rules above
+   are removed; these are the final presentation controls.
+   ============================================================ */
+
+.side-panel {
+  width: 238px;
+  max-height: min(64vh, 570px);
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    linear-gradient(125deg, rgba(48, 109, 145, 0.18) 0%, rgba(9, 22, 36, 0.82) 28%, rgba(3, 10, 19, 0.94) 72%, rgba(29, 49, 71, 0.76) 100%),
+    rgba(4, 11, 19, 0.78);
+  border: 1px solid rgba(144, 207, 240, 0.25);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.46),
+    0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+    0 0 32px rgba(53, 170, 230, 0.055);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.side-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.09), transparent 16%, transparent 68%, rgba(99,191,235,0.06)),
+    linear-gradient(90deg, transparent 0 94%, rgba(108, 210, 255, 0.16) 94.2% 94.6%, transparent 94.8%);
+  mix-blend-mode: screen;
+  opacity: 0.75;
+}
+
+.sidebar-panel {
+  left: 20px;
+}
+
+.ai-panel {
+  right: 20px;
+  bottom: 70px;
+  width: 314px;
+  height: 374px;
+  background:
+    linear-gradient(145deg, rgba(78, 83, 151, 0.16), rgba(7, 14, 27, 0.86) 34%, rgba(4, 9, 18, 0.94) 78%, rgba(46, 111, 140, 0.13)),
+    rgba(4, 9, 18, 0.8);
+  border-color: rgba(161, 181, 255, 0.25);
+  box-shadow:
+    0 18px 52px rgba(0, 0, 0, 0.5),
+    0 0 38px rgba(104, 121, 255, 0.065),
+    inset 0 1px 0 rgba(255,255,255,0.055);
+}
+
+.panel-header {
+  min-height: 45px;
+  padding: 12px 14px 10px;
+  position: relative;
+  background:
+    linear-gradient(90deg, rgba(72, 190, 239, 0.12), rgba(72, 190, 239, 0.025) 48%, transparent),
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent);
+  border-bottom: 1px solid rgba(144, 207, 240, 0.14);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.025);
+}
+
+.ai-panel .panel-header {
+  background:
+    linear-gradient(90deg, rgba(127, 122, 255, 0.14), rgba(73, 190, 239, 0.035) 58%, transparent),
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent);
+  border-bottom-color: rgba(163, 174, 255, 0.15);
+}
+
+.panel-header::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 8px;
+  width: 24px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(117,220,255,0.85), transparent);
+  box-shadow: 0 0 12px rgba(75,196,255,0.32);
+}
+
+.ai-panel .panel-header::before {
+  background: linear-gradient(90deg, rgba(172,163,255,0.9), rgba(80,206,255,0.35), transparent);
+}
+
+.category-row {
+  position: relative;
+  margin: 2px 5px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  background: linear-gradient(90deg, rgba(100, 178, 220, 0.045), transparent 82%);
+}
+
+.category-row:hover {
+  background: linear-gradient(90deg, rgba(100, 198, 238, 0.11), rgba(100, 198, 238, 0.025));
+  border-color: rgba(132, 205, 237, 0.11);
+}
+
+.category-row::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(165, 224, 249, 0.55);
+  box-shadow: 0 0 8px rgba(102, 204, 245, 0.5);
+  opacity: 0.35;
+}
+
+.satellite-item {
+  border-left-color: rgba(116, 204, 240, 0.13);
+  background: linear-gradient(90deg, rgba(90, 178, 220, 0.035), transparent);
+}
+
+.satellite-item:hover,
+.satellite-item.is-selected {
+  background: linear-gradient(90deg, rgba(86, 205, 255, 0.14), rgba(86, 205, 255, 0.035));
+  color: #f4fbff;
+}
+
+.exploration-search-wrap {
+  padding: 9px 9px 8px;
+  background: linear-gradient(180deg, rgba(82, 184, 226, 0.055), transparent);
+  border-bottom: 1px solid rgba(132, 201, 232, 0.11);
+}
+
+.exploration-search-wrap .satellite-search {
+  min-height: 29px;
+  background:
+    linear-gradient(90deg, rgba(100, 190, 235, 0.09), rgba(255,255,255,0.025)),
+    rgba(2, 9, 16, 0.48);
+  border-color: rgba(132, 207, 239, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 0 18px rgba(57, 173, 226, 0.035);
+}
+
+.exploration-search-wrap .satellite-search:focus-within {
+  border-color: rgba(130, 218, 255, 0.48);
+  box-shadow: 0 0 0 2px rgba(67, 195, 244, 0.08), 0 0 22px rgba(67, 195, 244, 0.1), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.ai-launcher {
+  right: 20px;
+  bottom: 20px;
+  min-height: 42px;
+  padding: 8px 13px 8px 10px;
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(76, 83, 146, 0.25), rgba(7, 15, 27, 0.9) 48%, rgba(38, 110, 139, 0.22)),
+    rgba(4, 10, 18, 0.72);
+  border-color: rgba(162, 188, 255, 0.31);
+  box-shadow:
+    0 13px 38px rgba(0,0,0,0.42),
+    0 0 24px rgba(96, 150, 255, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+}
+
+.ai-launcher:hover {
+  transform: translateY(-3px) scale(1.015);
+  border-color: rgba(187, 220, 255, 0.58);
+  box-shadow: 0 16px 42px rgba(0,0,0,0.48), 0 0 32px rgba(91,174,255,0.14), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.ai-launcher::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.09) 45%, transparent 66%);
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+
+.ai-launcher:hover::after {
+  transform: translateX(120%);
+}
+
+/* World-anchored satellite information card. It follows the selected
+   point in 3D instead of living in a screen corner. */
+.satellite-info-html {
+  pointer-events: auto !important;
+  z-index: 25;
+}
+
+.satellite-info-world {
+  position: relative;
+  min-width: 184px;
+  max-width: 235px;
+  padding: 10px 11px 9px;
+  border-radius: 11px;
+  background:
+    linear-gradient(135deg, rgba(70, 119, 148, 0.2), rgba(4, 13, 22, 0.84) 48%, rgba(21, 53, 70, 0.72)),
+    rgba(4, 10, 17, 0.76);
+  border: 1px solid rgba(163, 221, 247, 0.34);
+  box-shadow:
+    0 12px 32px rgba(0,0,0,0.44),
+    0 0 24px rgba(76, 195, 242, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.09);
+  backdrop-filter: blur(11px) saturate(125%);
+  -webkit-backdrop-filter: blur(11px) saturate(125%);
+  white-space: nowrap;
+  transform: translate(18px, -50%);
+  animation: satellite-world-card-in 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.satellite-info-world::before {
+  content: '';
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(142,220,249,0.1), rgba(142,220,249,0.7));
+  box-shadow: 0 0 8px rgba(96,205,245,0.3);
+}
+
+.satellite-info-world::after {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 5px #fff, 0 0 12px rgba(102,211,255,0.9);
+}
+
+@keyframes satellite-world-card-in {
+  from { opacity: 0; transform: translate(5px, -50%) scale(0.88); }
+  to { opacity: 1; transform: translate(18px, -50%) scale(1); }
+}
+
+.satellite-info-world .info-card-header {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom-color: rgba(157, 215, 239, 0.15);
+}
+
+.satellite-info-world .info-card-row {
+  font-size: 9px;
+}
+
+.satellite-info-world .info-card-row span:last-child {
+  color: rgba(235,247,255,0.9);
+}
+
+/* Keep the panel choreography smooth and GPU-friendly. */
+.side-panel,
+.ai-launcher,
+.satellite-info-world {
+  will-change: transform, opacity;
+}
+
+@media (max-width: 820px) {
+  .mobile-exploration-bar {
+    top: 53px;
+    left: 14px;
+    right: 14px;
+    min-height: 38px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background:
+      linear-gradient(90deg, rgba(54, 112, 149, 0.2), rgba(5, 14, 24, 0.78) 45%, rgba(33, 74, 97, 0.2)),
+      rgba(4, 11, 19, 0.72);
+    border-color: rgba(144, 207, 240, 0.28);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.07);
+    backdrop-filter: blur(12px) saturate(125%);
+    -webkit-backdrop-filter: blur(12px) saturate(125%);
+  }
+
+  .side-panel {
+    top: 99px;
+    width: min(89vw, 338px);
+    max-height: calc(100vh - 118px);
+    border-radius: 14px;
+  }
+
+  .sidebar-panel {
+    left: 12px;
+  }
+
+  .ai-panel {
+    right: 12px;
+    left: 12px;
+    bottom: 67px;
+    width: auto;
+    height: min(55vh, 390px);
+    max-height: min(55vh, 390px);
+  }
+
+  .ai-launcher {
+    right: 13px;
+    bottom: 14px;
+  }
+
+  .satellite-info-world {
+    min-width: 170px;
+    max-width: 210px;
+    padding: 9px 10px;
+    transform: translate(12px, -50%);
+  }
+
+  @keyframes satellite-world-card-in {
+    from { opacity: 0; transform: translate(2px, -50%) scale(0.88); }
+    to { opacity: 1; transform: translate(12px, -50%) scale(1); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .satellite-info-world,
+  .ai-launcher::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+
+/* ============================================================
+   SATELLITE DOT SCALE — brighter, more readable orbital markers
+   ============================================================ */
+
+/* The satellite markers remain GPU-instanced THREE.Points rather than
+   sphere meshes, so the larger visual size does not multiply scene geometry. */
+.satellite-info-html {
+  pointer-events: auto;
+}
+
+@media (max-width: 820px) {
+  /* Give touch targets a little more visual presence on small screens. */
+  .satellite-info-world {
+    transform: translate(12px, -50%);
+  }
+}
+
+
+/* ============================================================
+   AI ASSISTANT LAUNCHER / CLOSE CONTROL
+   ============================================================ */
+
+/* Desktop and mobile both show a clear invitation while the assistant
+   is collapsed, and a dedicated X while it is expanded. */
+.ai-launcher {
+  gap: 9px;
+  min-width: 178px;
+  padding: 8px 11px 8px 10px;
+  text-align: left;
+}
+
+.ai-launcher-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  line-height: 1;
+}
+
+.ai-launcher-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: rgba(232, 246, 255, 0.92);
+  white-space: nowrap;
+}
+
+.ai-launcher-prompt {
+  margin-top: 4px;
+  padding-left: 0;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 6.5px;
+  letter-spacing: 0.15em;
+  color: rgba(153, 207, 235, 0.62);
+  white-space: nowrap;
+}
+
+.ai-launcher-arrow {
+  margin-left: auto;
+  font-size: 14px;
+  line-height: 1;
+  color: rgba(173, 224, 255, 0.78);
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.ai-launcher:hover .ai-launcher-arrow {
+  transform: translate(2px, -2px);
+  color: #fff;
+}
+
+.ai-close-button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  margin: -3px -2px -3px 8px;
+  padding: 0;
+  border: 1px solid rgba(177, 213, 238, 0.16);
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(77, 121, 150, 0.08));
+  color: rgba(220, 239, 250, 0.72);
+  font-family: Arial, sans-serif;
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease, transform 0.22s ease;
+}
+
+.ai-close-button:hover {
+  border-color: rgba(160, 220, 255, 0.48);
+  background: rgba(98, 181, 224, 0.12);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+@media (max-width: 820px) {
+  .ai-launcher {
+    min-width: 169px;
+    padding-right: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-launcher-arrow,
+  .ai-close-button {
+    transition: none;
+  }
+}
+
+
+/* ============================================================
+   SATELLITE FLY-IN POLISH — keep the selected satellite card compact
+   and readable while the camera performs the cinematic approach.
+   ============================================================ */
+.satellite-info-html {
+  pointer-events: auto !important;
+}
+
+.satellite-info-world {
+  min-width: 184px;
+  max-width: 235px;
+  transform: translate(16px, -50%);
+  transform-origin: left center;
+}
+
+@media (max-width: 820px) {
+  .satellite-info-world {
+    min-width: 165px;
+    max-width: 210px;
+    transform: translate(11px, -50%);
+  }
+}
+
+
+/* ============================================================
+   V7 POLISH — satellite visibility, instrument panels, anchored card,
+   Earth-centered satellite focus, and intro crossfade.
+   These overrides intentionally sit at the end so the original stylesheet
+   remains intact while the final visual layer wins.
+   ============================================================ */
+
+/* Satellites: brighter, slightly larger, and still a single THREE.Points
+   draw call for scalability. */
+.satellite-info-html { pointer-events: auto !important; }
+
+/* Exploration + AI: move away from generic "glass card" styling and toward
+   compact spacecraft instrumentation with layered borders and restrained transparency. */
+.side-panel {
+  width: 250px;
+  max-height: 66vh;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 211, 255, 0.28);
+  background:
+    linear-gradient(135deg, rgba(11, 27, 43, 0.94), rgba(6, 15, 27, 0.88) 56%, rgba(9, 20, 34, 0.94)),
+    rgba(5, 12, 20, 0.88);
+  backdrop-filter: blur(15px) saturate(125%);
+  -webkit-backdrop-filter: blur(15px) saturate(125%);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255,255,255,0.025),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 0 26px rgba(40, 177, 255, 0.025);
+  overflow: hidden;
+}
+
+.side-panel::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(116, 192, 226, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116, 192, 226, 0.025) 1px, transparent 1px);
+  background-size: 34px 34px;
+  opacity: 0.75;
+  animation: none;
+  border: 1px solid rgba(125, 211, 255, 0.055);
+}
+
+.side-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(107, 217, 255, 0.42), transparent 23%) top left / 58px 1px no-repeat,
+    linear-gradient(180deg, rgba(107, 217, 255, 0.42), transparent 23%) top left / 1px 58px no-repeat,
+    linear-gradient(270deg, rgba(107, 217, 255, 0.28), transparent 18%) bottom right / 48px 1px no-repeat,
+    linear-gradient(0deg, rgba(107, 217, 255, 0.28), transparent 18%) bottom right / 1px 48px no-repeat;
+}
+
+.side-panel > * { position: relative; z-index: 1; }
+
+.sidebar-panel {
+  left: 20px;
+}
+
+.ai-panel {
+  right: 20px;
+  width: 315px;
+  border-color: rgba(153, 132, 255, 0.32);
+  background:
+    linear-gradient(135deg, rgba(20, 18, 45, 0.94), rgba(8, 14, 31, 0.9) 56%, rgba(13, 17, 40, 0.94)),
+    rgba(7, 10, 23, 0.9);
+  box-shadow:
+    0 18px 52px rgba(0,0,0,0.52),
+    0 0 34px rgba(112, 85, 255, 0.07),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 0 30px rgba(137, 113, 255, 0.035);
+}
+
+.ai-panel::before {
+  background:
+    linear-gradient(rgba(166, 144, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(166, 144, 255, 0.023) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.panel-header {
+  min-height: 45px;
+  padding: 0 10px 0 13px;
+  border-bottom: 1px solid rgba(124, 205, 240, 0.14);
+  background:
+    linear-gradient(90deg, rgba(82, 183, 229, 0.12), transparent 54%),
+    rgba(8, 22, 34, 0.62);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.025);
+  letter-spacing: 0.17em;
+}
+
+.ai-panel .panel-header {
+  background:
+    linear-gradient(90deg, rgba(141, 105, 255, 0.15), rgba(73, 194, 255, 0.025) 72%),
+    rgba(12, 15, 34, 0.66);
+  border-bottom-color: rgba(157, 138, 255, 0.17);
+}
+
+.panel-header::before {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(87, 216, 255, 0.75), transparent 70%);
+}
+
+.ai-panel .panel-header::before {
+  background: linear-gradient(90deg, rgba(174, 132, 255, 0.82), rgba(77, 201, 255, 0.32), transparent 74%);
+}
+
+.category-row,
+.satellite-item {
+  border-radius: 6px;
+}
+
+.category-row {
+  background: linear-gradient(90deg, rgba(61, 164, 211, 0.055), rgba(12, 23, 35, 0.16));
+  border: 1px solid rgba(119, 203, 237, 0.055);
+}
+
+.category-row:hover {
+  background: linear-gradient(90deg, rgba(71, 185, 231, 0.11), rgba(14, 29, 42, 0.28));
+  border-color: rgba(118, 210, 241, 0.15);
+}
+
+.satellite-item:hover,
+.satellite-item.is-selected {
+  background: linear-gradient(90deg, rgba(80, 194, 235, 0.12), rgba(29, 50, 65, 0.24));
+  border-color: rgba(122, 216, 247, 0.18);
+}
+
+.exploration-search-wrap {
+  margin: 9px 9px 6px;
+  border: 1px solid rgba(111, 201, 236, 0.14);
+  border-radius: 7px;
+  background: rgba(3, 12, 21, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+
+.exploration-search-wrap .satellite-search {
+  background: linear-gradient(90deg, rgba(55, 151, 193, 0.055), rgba(8, 18, 29, 0.18));
+}
+
+/* AI close button: force it visible even though the base mobile-only close
+   control is display:none. */
+.ai-panel .ai-close-button,
+.ai-panel .panel-mobile-close.ai-close-button {
+  display: flex !important;
+  position: relative;
+  z-index: 8;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  margin: 0 0 0 8px;
+  padding: 0;
+  border: 1px solid rgba(181, 164, 255, 0.23);
+  border-radius: 7px;
+  background: rgba(255,255,255,0.035);
+  color: rgba(229, 223, 255, 0.86);
+  font: 300 19px/1 Arial, sans-serif;
+  cursor: pointer;
+}
+
+.ai-panel .ai-close-button:hover,
+.ai-panel .panel-mobile-close.ai-close-button:hover {
+  border-color: rgba(182, 150, 255, 0.58);
+  background: rgba(150, 116, 255, 0.12);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+/* Compact world-anchored satellite information. The anchor is the exact
+   satellite coordinate, with the connector starting from the card's edge. */
+.satellite-info-world {
+  min-width: 180px;
+  max-width: 218px;
+  padding: 9px 10px;
+  transform: translate(19px, -50%);
+  transform-origin: left center;
+  border-radius: 8px;
+  border: 1px solid rgba(124, 213, 248, 0.28);
+  background:
+    linear-gradient(145deg, rgba(10, 29, 44, 0.95), rgba(5, 16, 27, 0.9)),
+    rgba(5, 14, 23, 0.92);
+  box-shadow:
+    0 12px 34px rgba(0,0,0,0.44),
+    0 0 24px rgba(59, 186, 234, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.satellite-info-world::before {
+  left: -19px;
+  width: 19px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(126, 224, 255, 0.9), rgba(126, 224, 255, 0.18));
+  box-shadow: 0 0 6px rgba(71, 206, 255, 0.45);
+}
+
+.satellite-info-world::after {
+  left: -23px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(166, 235, 255, 0.95);
+  background: rgba(92, 220, 255, 0.75);
+  box-shadow: 0 0 9px rgba(80, 212, 255, 0.78);
+}
+
+.satellite-info-world .info-card-header {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom-color: rgba(130, 211, 240, 0.13);
+}
+
+.satellite-info-world .info-card-name {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.satellite-info-world .info-card-row {
+  font-size: 8.5px;
+  line-height: 1.55;
+}
+
+.satellite-info-world .info-card-close {
+  width: 22px;
+  height: 22px;
+}
+
+/* Background reveal: the canvas is softly introduced when main mode starts;
+   the longer mask fade prevents a texture/space "drop" after loading. */
+.earth-canvas-wrap {
+  opacity: 0;
+  transition: opacity 1.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.earth-experience.is-main .earth-canvas-wrap {
+  opacity: 1;
+}
+
+.earth-reveal-mask {
+  animation-duration: 1.25s !important;
+}
+
+@media (max-width: 820px) {
+  .side-panel {
+    width: min(88vw, 320px);
+    max-height: calc(100vh - 118px);
+  }
+
+  .sidebar-panel { left: 12px; }
+  .ai-panel { right: 12px; left: 12px; width: auto; }
+
+  .satellite-info-world {
+    min-width: 165px;
+    max-width: 202px;
+    transform: translate(14px, -50%);
+  }
+
+  .satellite-info-world::before { left: -14px; width: 14px; }
+  .satellite-info-world::after { left: -18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .earth-canvas-wrap,
+  .earth-reveal-mask {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+
+/* V7 satellite readability: a crisp core plus a restrained additive halo. */
+.satellite-info-html { z-index: 40 !important; }
+
+/* Make the AI close affordance unambiguous in the panel header. */
+.ai-panel .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ai-panel .panel-header > span { min-width: 0; }
+.ai-panel .ai-close-button {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Keep the world card attached exactly to the satellite anchor. */
+.satellite-info-world {
+  margin: 0 !important;
+  transform: translate3d(19px, -50%, 0) !important;
+}
+.satellite-info-world::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  right: 100% !important;
+  left: auto !important;
+  width: 19px !important;
+  height: 1px !important;
+  transform: translateY(-50%) !important;
+}
+.satellite-info-world::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  right: calc(100% + 19px) !important;
+  left: auto !important;
+  transform: translate(50%, -50%) !important;
+}
+
+@media (max-width: 820px) {
+  .satellite-info-world {
+    transform: translate3d(14px, -50%, 0) !important;
+  }
+  .satellite-info-world::before {
+    width: 14px !important;
+  }
+  .satellite-info-world::after {
+    right: calc(100% + 14px) !important;
+  }
+}
+
+
+/* ============================================================
+   V8 — FINAL VISUAL PASS
+   Satellites: circular professional markers, brighter and readable.
+   Selection: fixed compact details panel + 3D satellite/orbit highlight.
+   Exploration / AI: cleaner aerospace HUD, one search field, no glass-pop.
+   Intro: starfield visible while loading instead of being hidden by the canvas.
+   ============================================================ */
+
+/* Keep the canvas visible during INTRO. The starfield itself controls its
+   own fade, so the user sees the space environment instead of a hidden canvas. */
+.earth-canvas-wrap {
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+/* Prevent the old mask from hiding the intro space scene for too long. */
+.earth-reveal-mask {
+  animation-duration: 0.7s !important;
+}
+
+/* SEARCH — one coherent instrument field. The wrapper is structural only. */
+.exploration-search-wrap {
+  margin: 8px 8px 7px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.exploration-search-wrap .satellite-search {
+  min-height: 34px;
+  padding: 4px 5px 4px 10px !important;
+  gap: 6px;
+  border: 1px solid rgba(116, 197, 236, 0.24) !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(180deg, rgba(22, 48, 68, 0.58), rgba(5, 17, 29, 0.84)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 4px 14px rgba(0,0,0,0.16) !important;
+}
+
+.exploration-search-wrap .satellite-search:focus-within {
+  border-color: rgba(105, 213, 255, 0.52) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 0 2px rgba(71, 196, 255, 0.08),
+    0 6px 16px rgba(0,0,0,0.2) !important;
+}
+
+.exploration-search-wrap .satellite-search input {
+  flex: 1 1 auto;
+  width: auto !important;
+  min-width: 0;
+  padding: 3px 0 !important;
+  font-size: 9px !important;
+}
+
+.exploration-search-wrap .satellite-search button[type='submit'] {
+  flex: 0 0 auto;
+  min-width: 35px;
+  padding: 5px 8px !important;
+  border-radius: 5px !important;
+  background: rgba(70, 185, 228, 0.13) !important;
+  border-color: rgba(107, 207, 245, 0.35) !important;
+}
+
+/* PANELS — sleeker instrument-frame treatment instead of generic glass. */
+.side-panel {
+  width: 236px !important;
+  border-radius: 9px !important;
+  background:
+    linear-gradient(180deg, rgba(7, 20, 32, 0.97), rgba(3, 10, 18, 0.97)) !important;
+  border: 1px solid rgba(116, 190, 228, 0.3) !important;
+  box-shadow:
+    0 18px 42px rgba(0,0,0,0.42),
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 1px 0 0 rgba(91, 201, 241, 0.04) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow: hidden !important;
+}
+
+.side-panel::before {
+  display: block !important;
+  inset: 0 !important;
+  background:
+    linear-gradient(90deg, rgba(88, 206, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(88, 206, 255, 0.045) 1px, transparent 1px) !important;
+  background-size: 42px 42px !important;
+  opacity: 0.14 !important;
+  border: 0 !important;
+}
+
+.side-panel::after {
+  background:
+    linear-gradient(90deg, rgba(89, 213, 255, 0.76), transparent 85%) top left / 74px 1px no-repeat,
+    linear-gradient(180deg, rgba(89, 213, 255, 0.55), transparent 80%) top left / 1px 46px no-repeat,
+    linear-gradient(270deg, rgba(89, 213, 255, 0.35), transparent 85%) bottom right / 60px 1px no-repeat !important;
+}
+
+.sidebar-panel {
+  left: 20px !important;
+}
+
+.ai-panel {
+  right: 20px !important;
+  width: 302px !important;
+  background:
+    linear-gradient(180deg, rgba(13, 16, 37, 0.98), rgba(5, 9, 22, 0.98)) !important;
+  border-color: rgba(148, 128, 255, 0.3) !important;
+  box-shadow:
+    0 18px 46px rgba(0,0,0,0.46),
+    inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+
+.ai-panel::before {
+  background:
+    linear-gradient(90deg, rgba(153, 127, 255, 0.09) 1px, transparent 1px),
+    linear-gradient(rgba(153, 127, 255, 0.05) 1px, transparent 1px) !important;
+  opacity: 0.12 !important;
+}
+
+.panel-header {
+  min-height: 40px !important;
+  padding: 10px 10px 9px 12px !important;
+  background: linear-gradient(90deg, rgba(73, 190, 235, 0.1), transparent 74%) !important;
+  border-bottom-color: rgba(113, 193, 231, 0.17) !important;
+}
+
+.ai-panel .panel-header {
+  background: linear-gradient(90deg, rgba(150, 124, 255, 0.12), transparent 76%) !important;
+  border-bottom-color: rgba(158, 140, 255, 0.18) !important;
+}
+
+/* AI opening: no expanding glass / blur animation. Just reveal the panel. */
+.ai-panel,
+.ai-panel.is-open,
+.ai-panel:not(.is-open) {
+  transition: opacity 0.14s ease !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.ai-panel.is-open {
+  opacity: 1 !important;
+}
+
+.ai-panel:not(.is-open) {
+  opacity: 0 !important;
+}
+
+/* Satellite details stay compact and fixed to the right, so they never scale
+   with camera distance. The 3D scene carries the actual satellite highlight. */
+.satellite-info-html {
+  display: none !important;
+}
+
+.satellite-info-fixed {
+  position: fixed !important;
+  right: 24px !important;
+  top: 50% !important;
+  left: auto !important;
+  bottom: auto !important;
+  z-index: 34 !important;
+  width: 232px !important;
+  min-width: 232px !important;
+  max-width: 232px !important;
+  padding: 11px 12px !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(155deg, rgba(9, 27, 41, 0.97), rgba(3, 12, 21, 0.98)) !important;
+  border: 1px solid rgba(108, 205, 244, 0.34) !important;
+  box-shadow:
+    0 16px 42px rgba(0,0,0,0.46),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 24px rgba(69, 197, 241, 0.05) !important;
+  transform: translateY(-50%) !important;
+  animation: satellite-fixed-card-in 0.25s cubic-bezier(0.22,1,0.36,1) both !important;
+}
+
+.satellite-info-fixed .info-card-header {
+  margin-bottom: 7px !important;
+  padding-bottom: 7px !important;
+}
+
+.satellite-info-fixed .info-card-name {
+  font-size: 10px !important;
+}
+
+.satellite-info-fixed .info-card-row {
+  font-size: 8.5px !important;
+  line-height: 1.55 !important;
+}
+
+.satellite-info-focus {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(121, 210, 239, 0.11);
+  color: rgba(121, 215, 244, 0.52);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 6.5px;
+  letter-spacing: 0.13em;
+}
+
+@keyframes satellite-fixed-card-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Make the satellite hover/selection cursor feel intentional. */
+.satellite-item.is-selected {
+  border-color: rgba(117, 219, 249, 0.28) !important;
+  background: linear-gradient(90deg, rgba(76, 190, 235, 0.18), rgba(34, 58, 73, 0.22)) !important;
+}
+
+/* AI close control — always visible, understated and crisp. */
+.ai-panel .ai-close-button {
+  width: 27px !important;
+  height: 27px !important;
+  border-radius: 6px !important;
+  background: rgba(255,255,255,0.025) !important;
+  border-color: rgba(181, 164, 255, 0.2) !important;
+}
+
+@media (max-width: 820px) {
+  .side-panel {
+    width: min(88vw, 320px) !important;
+  }
+
+  .sidebar-panel { left: 12px !important; }
+  .ai-panel { right: 12px !important; width: auto !important; }
+
+  .satellite-info-fixed {
+    right: 14px !important;
+    top: auto !important;
+    bottom: 64px !important;
+    width: min(230px, calc(100vw - 28px)) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .satellite-info-fixed,
+  .ai-panel {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+
+/* ============================================================
+   V12 — AI / SATELLITE DETAILS LAYOUT
+   Keep the normal AI panel size, but create a deliberate compact
+   footprint when satellite details are visible so the two never overlap.
+   Remove all glass-pop / scale transitions from the AI panel itself.
+   ============================================================ */
+.ai-panel,
+.ai-panel.is-open,
+.ai-panel:not(.is-open),
+.ai-panel.has-satellite-info,
+.ai-panel.has-satellite-info.is-open {
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: none !important;
+}
+
+.ai-panel.is-open {
+  transition: opacity 0.16s ease !important;
+}
+
+/* Normal open state keeps the exact current footprint. */
+.ai-panel.is-open:not(.has-satellite-info) {
+  width: 302px !important;
+  height: 360px !important;
+  max-height: min(58vh, 360px) !important;
+  right: 20px !important;
+  bottom: 72px !important;
+  opacity: 1 !important;
+}
+
+/* When the satellite card exists, shrink only the open AI panel so there is
+   guaranteed visual separation on the right side. */
+.ai-panel.is-open.has-satellite-info {
+  width: 250px !important;
+  height: 286px !important;
+  max-height: min(46vh, 286px) !important;
+  right: 20px !important;
+  bottom: 72px !important;
+  opacity: 1 !important;
+}
+
+.ai-panel.is-open.has-satellite-info .panel-header {
+  min-height: 38px !important;
+  padding-top: 8px !important;
+  padding-bottom: 7px !important;
+}
+
+.ai-panel.is-open.has-satellite-info .ai-messages {
+  padding: 8px 10px !important;
+  gap: 6px !important;
+}
+
+.ai-panel.is-open.has-satellite-info .ai-msg {
+  padding: 7px 8px !important;
+  font-size: 9px !important;
+  line-height: 1.4 !important;
+}
+
+.ai-panel.is-open.has-satellite-info .ai-input-row {
+  padding: 7px 9px !important;
+}
+
+/* Remove the old sweeping/glass launcher sheen. Keep the launcher clean and
+   static; only the small orb can breathe subtly. */
+.ai-launcher::after {
+  display: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Also disable inherited glass-like pseudo effects on the open AI panel. */
+.ai-panel::after {
+  animation: none !important;
+}
+
+@media (max-width: 820px) {
+  .ai-panel.is-open:not(.has-satellite-info) {
+    width: min(88vw, 320px) !important;
+    height: min(68vh, 420px) !important;
+    max-height: min(68vh, 420px) !important;
+  }
+
+  .ai-panel.is-open.has-satellite-info {
+    right: 12px !important;
+    width: min(78vw, 285px) !important;
+    height: min(48vh, 300px) !important;
+    max-height: min(48vh, 300px) !important;
+  }
+}
+
+/* ============================================================
+   V13 — SATELLITE DETAILS / AI COLLISION FIX
+   When both panels are visible, place the fixed satellite details
+   panel to the LEFT of the AI panel with a guaranteed gap.
+   ============================================================ */
+@media (min-width: 821px) {
+  /* When both are visible, the satellite details sit directly ABOVE the AI
+     assistant, aligned to the same right edge with a clean vertical gap. */
+  .ai-panel.has-satellite-info.is-open + .satellite-info-fixed {
+    right: 20px !important;
+    top: auto !important;
+    bottom: calc(72px + 286px + 14px) !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 820px) {
+  /* Same vertical stack on mobile: description above AI, never beside it. */
+  .ai-panel.has-satellite-info.is-open + .satellite-info-fixed {
+    right: 12px !important;
+    top: auto !important;
+    bottom: calc(64px + min(48vh, 300px) + 14px) !important;
+    transform: none !important;
+  }
+}
+
+
+/* ============================================================
+   V14 — SATELLITE DETAILS ABOVE AI ASSISTANT
+   ============================================================ */
+@media (min-width: 821px) {
+  .ai-panel.has-satellite-info.is-open + .satellite-info-fixed {
+    right: 20px !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: calc(72px + 286px + 14px) !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .ai-panel.has-satellite-info.is-open + .satellite-info-fixed {
+    right: 12px !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: calc(64px + min(48vh, 300px) + 14px) !important;
+    transform: none !important;
+  }
+}
+
+
+/* SEARCH ACTION — explicit Enter button */
+.exploration-search-wrap .satellite-search button[type='submit'] {
+  min-width: 46px !important;
+  padding: 5px 9px !important;
+  font-size: 7.5px !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 700px) {
+  .exploration-search-wrap .satellite-search button[type='submit'] {
+    min-width: 48px !important;
+    padding: 6px 9px !important;
+    font-size: 8px !important;
+  }
+}
