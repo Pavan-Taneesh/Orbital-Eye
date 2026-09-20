@@ -76,7 +76,7 @@ class AIService:
         if prompt is None:
             raise ValueError("Prompt must not be None")
         if not isinstance(prompt, str):
-            raise ValueError(f"Prompt must be a string, got {type(prompt)}")
+            raise TypeError(f"Prompt must be a string, got {type(prompt)}")
         if prompt.strip() == "":
             raise ValueError("Prompt must not be empty or whitespace-only")
         if len(prompt) > 100_000:

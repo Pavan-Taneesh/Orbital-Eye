@@ -14,7 +14,7 @@ Visual state includes:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -142,14 +142,14 @@ class AIStatus:
     usage: dict[str, int] = field(default_factory=dict)  # input_tokens, output_tokens, total_tokens
     request_count: int = 0
 
-    def record_request(self, provider: str, model: str, usage: dict[str, int] = None):
+    def record_request(self, provider: str, model: str, usage: dict[str, int] | None = None):
         self.state = AIState.PROCESSING
         self.provider = provider
         self.model = model
-        self.last_request = datetime.utcnow()
+        self.last_request = datetime.now(timezone.utc)
         self.request_count += 1
 
-    def record_success(self, response: str, usage: dict[str, int] = None):
+    def record_success(self, response: str, usage: dict[str, int] | None = None):
         self.state = AIState.SUCCESS
         self.last_response = response
         if usage:

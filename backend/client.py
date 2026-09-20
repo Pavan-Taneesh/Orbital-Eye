@@ -59,11 +59,11 @@ class APIClient:
         if response.is_error:
             try:
                 error_data = response.json()
-            except Exception:
+            except ValueError:
                 error_data = {"detail": response.text}
             raise APIError(
                 status_code=response.status_code,
-                detail=error_data.get("detail", response.phrase),
+                detail=error_data.get("detail", response.text),
                 response=error_data,
             )
         return response.json()

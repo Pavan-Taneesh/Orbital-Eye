@@ -55,7 +55,7 @@ def get_source_and_freshness(object_id: int):
     return row
 
 
-def get_state(object_id: int, when: datetime = None):
+def get_state(object_id: int, when: datetime | None = None):
     """
     Build the Contract C state dict for one object.
     `when` defaults to now (UTC) if not given.

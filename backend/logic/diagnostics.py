@@ -74,22 +74,17 @@ def get_ingestion_history(object_id: int):
     ]
 
 
-def get_sgp4_error_code(object_id: int, when: datetime = None):
+def get_sgp4_error_code(object_id: int, when: datetime | None = None):
     """Run SGP4 directly and return raw error code (0 = success)."""
     if when is None:
         when = datetime.now(timezone.utc)
 
-    select_row = (
-        "epoch", "mean_motion", "eccentricity", "inclination",
-        "ra_of_asc_node", "arg_of_pericenter", "mean_anomaly",
-        "bstar", "mean_motion_dot", "mean_motion_ddot",
-    )
     row = get_latest_elements(object_id)
     sat = build_satellite(row)
 
     jd, fr = jday(when.year, when.month, when.day,
                    when.hour, when.minute, when.second + when.microsecond / 1e6)
-    error, position, velocity = sat.sgp4(jd, fr)
+    error, _position, _velocity = sat.sgp4(jd, fr)
     return error
 
 

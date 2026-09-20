@@ -71,7 +71,7 @@ try:
         json.dump(schema, f, indent=2)
     print("\nFull schema saved to /tmp/openapi_schema.json")
 
-except Exception as e:
+except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
     print(f"\nError fetching OpenAPI schema: {e}")
     import traceback
     traceback.print_exc()

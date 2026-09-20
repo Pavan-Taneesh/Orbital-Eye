@@ -220,7 +220,7 @@ class GeminiProvider(ProviderInterface):
                     "configured": True,
                     "error": "Empty test response"
                 }
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - health check must catch all errors
             return {
                 "status": "unhealthy",
                 "provider": self.name,

@@ -11,9 +11,10 @@ Commands are validated before execution. AI output is NEVER trusted directly.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-from typing import Any, Union
+from typing import Any
 
 from pydantic import BaseModel, Field, validator
 
@@ -72,14 +73,14 @@ class OpenInformationPanelParams(BaseModel):
 
 
 # Union of all parameter types
-CommandParams = Union[
-    FindObjectParams,
-    FilterObjectsParams,
-    FocusObjectParams,
-    ShowOrbitParams,
-    FollowObjectParams,
-    OpenInformationPanelParams,
-]
+CommandParams = (
+    FindObjectParams
+    | FilterObjectsParams
+    | FocusObjectParams
+    | ShowOrbitParams
+    | FollowObjectParams
+    | OpenInformationPanelParams
+)
 
 
 class ApplicationCommand(BaseModel):
@@ -117,7 +118,7 @@ class ApplicationCommand(BaseModel):
         if isinstance(v, dict):
             return expected_type(**v)
         if not isinstance(v, expected_type):
-            raise ValueError(f"Params must be {expected_type.__name__} for command {command}")
+            raise TypeError(f"Params must be {expected_type.__name__} for command {command}")
         return v
 
 
@@ -150,14 +151,14 @@ class CommandValidator:
     """
 
     # Allowlisted commands that AI can invoke
-    ALLOWED_COMMANDS = {
+    ALLOWED_COMMANDS: frozenset[CommandName] = frozenset({
         CommandName.FIND_OBJECT,
         CommandName.FILTER_OBJECTS,
         CommandName.FOCUS_OBJECT,
         CommandName.SHOW_ORBIT,
         CommandName.FOLLOW_OBJECT,
         CommandName.OPEN_INFORMATION_PANEL,
-    }
+    })
 
     def __init__(self, strict: bool = True):
         self.strict = strict
@@ -264,9 +265,9 @@ class CommandExecutor:
     def __init__(self, api_client=None):
         """Initialize with optional API client for backend calls."""
         self.api_client = api_client
-        self._callbacks: dict[CommandName, callable] = {}
+        self._callbacks: dict[CommandName, Callable[[CommandParams], dict[str, Any]]] = {}
 
-    def register_callback(self, command: CommandName, callback: callable) -> None:
+    def register_callback(self, command: CommandName, callback: Callable[[CommandParams], dict[str, Any]]) -> None:
         """Register a callback for a command (for frontend integration)."""
         self._callbacks[command] = callback
 

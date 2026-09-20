@@ -274,7 +274,7 @@ class AIExplorationService:
                 latency_ms=latency_ms,
             )
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - catch-all for unexpected errors
             self.total_errors += 1
             self.errors_by_type["unexpected"] = self.errors_by_type.get("unexpected", 0) + 1
             latency_ms = (time.time() - start_time) * 1000

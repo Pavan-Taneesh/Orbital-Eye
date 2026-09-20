@@ -76,7 +76,7 @@ def health_check():
 @app.get("/api/v1/objects/search", response_model=PaginatedResponse)
 def search_objects(
     q: str = "",
-    category: int = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
 ):
@@ -107,7 +107,7 @@ def search_objects(
 
 @app.get("/api/v1/objects", response_model=PaginatedResponse)
 def list_objects(
-    category: int = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
 ):
@@ -275,12 +275,12 @@ def ai_explore(req: AIExploreRequest):
     Returns:
         AIExploreResponse with command execution result
     """
-    from ai_exploration import AIExplorationService, make_service
-    from command_system import AICommandBridge, CommandExecutor
-    from client import APIClient
-
     # Use fake provider by default; can be overridden via env var
     import os
+
+    from ai_exploration import AIExplorationService, make_service
+    from client import APIClient
+    from command_system import AICommandBridge, CommandExecutor
     provider_name = os.getenv("AI_PROVIDER", "fake")
     ai_service = make_service(provider_name)
 

@@ -156,6 +156,7 @@ def ingest_run() -> dict[str, Any]:
             [sys.executable, script_path],
             capture_output=True,
             text=True,
+            check=False,
         )
         results.append({
             "script": script,
@@ -242,7 +243,7 @@ def main() -> int:
         print("Usage: python -m backend.commands <command> [args...]")
         print("Commands: state, diagnose, health, ingest")
         return 1
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - CLI boundary must report failures
         print(f"Error: {exc}")
         return 2
 

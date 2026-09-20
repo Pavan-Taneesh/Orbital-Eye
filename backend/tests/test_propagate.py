@@ -19,7 +19,7 @@ def test_leo_object_altitude_in_range():
     row = get_latest_elements(2)
     sat = build_satellite(row)
     now = datetime.now(timezone.utc)
-    position, velocity, altitude = propagate(sat, now)
+    _position, _velocity, altitude = propagate(sat, now)
 
     assert 350 <= altitude <= 450, f"LEO altitude out of expected range: {altitude}"
 
@@ -29,7 +29,7 @@ def test_geo_object_altitude_in_range():
     row = get_latest_elements(77)
     sat = build_satellite(row)
     now = datetime.now(timezone.utc)
-    position, velocity, altitude = propagate(sat, now)
+    _position, _velocity, altitude = propagate(sat, now)
 
     assert 35500 <= altitude <= 36000, f"GEO altitude out of expected range: {altitude}"
 
@@ -39,7 +39,7 @@ def test_position_and_velocity_are_nonzero_vectors():
     row = get_latest_elements(2)
     sat = build_satellite(row)
     now = datetime.now(timezone.utc)
-    position, velocity, altitude = propagate(sat, now)
+    position, velocity, _altitude = propagate(sat, now)
 
     assert any(abs(c) > 0 for c in position), "Position vector is all zero"
     assert any(abs(c) > 0 for c in velocity), "Velocity vector is all zero"

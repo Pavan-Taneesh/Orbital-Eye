@@ -17,6 +17,7 @@ from backend.command_system import (
     OpenInformationPanelParams,
     ShowOrbitParams,
 )
+from pydantic import ValidationError
 
 
 class TestCommandParams:
@@ -78,14 +79,14 @@ class TestApplicationCommand:
         assert cmd.params.query == "ISS"
 
     def test_invalid_command_rejected(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ApplicationCommand(
                 command="invalid_command",
                 params={"object_id": 1},
             )
 
     def test_wrong_params_for_command_rejected(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ApplicationCommand(
                 command=CommandName.FOCUS_OBJECT,
                 params={"query": "ISS"},  # wrong params for focus_object
