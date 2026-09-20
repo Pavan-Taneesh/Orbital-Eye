@@ -60,7 +60,7 @@ jobs:
           pip install mypy types-psycopg2
 
       - name: Run mypy type checking
-        run: mypy --ignore-missing-imports .
+        run: mypy --config-file mypy.ini .
 
   test:
     name: Backend Tests
