@@ -15,6 +15,9 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from logic.state_model import connect
+from schemas import build_object_details_from_row
+
 
 def _validate_object_id(object_id: int) -> None:
     """Validate that object_id is a positive integer.
@@ -170,7 +173,7 @@ def get_object(object_id: int) -> dict[str, Any]:
 
     cur.execute(
         """
-        SELECT o.object_id, o.name, c.name AS category, o.norad_id
+        SELECT o.object_id, o.name, o.category_id, c.name AS category, o.norad_id
         FROM objects o
         LEFT JOIN categories c ON o.category_id = c.category_id
         WHERE o.object_id = %s;
@@ -183,7 +186,7 @@ def get_object(object_id: int) -> dict[str, Any]:
         conn.close()
         raise HTTPException(status_code=404, detail="object not found")
 
-    obj_id, name, category, norad_id = row
+    obj_id, name, category_id, category, norad_id = row
 
     cur.execute(
         "SELECT field_name, field_value FROM resolved_metadata WHERE object_id = %s;",
@@ -202,7 +205,7 @@ def get_object(object_id: int) -> dict[str, Any]:
     od = build_object_details_from_row(
         object_id=obj_id,
         name=name,
-        category_id=category_id if isinstance(category, int) else None,  # type: ignore
+        category_id=category_id,
         category=category,
         norad_id=norad_id,
         resolved_metadata=metadata,

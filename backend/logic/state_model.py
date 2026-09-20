@@ -8,6 +8,7 @@ Usage (standalone test):
 """
 
 import os
+import sys
 from datetime import datetime, timezone
 
 import psycopg2
