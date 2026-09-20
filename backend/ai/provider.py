@@ -10,11 +10,9 @@ provider) implement this interface.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, List, Sequence, Tuple
+from typing import Any
 
-from .response import AIResponse  # noqa: F401
-
-from .exceptions import MissingCredentialsError, ProviderFailureError
+from .response import AIResponse
 
 
 class ProviderInterface:
@@ -30,10 +28,10 @@ class ProviderInterface:
     def generate(
         self,
         prompt: str,
-        system: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        timeout: Optional[float] = None,
+        system: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> AIResponse:
         """Generate a response to the given prompt.
 
@@ -69,7 +67,7 @@ class ProviderInterface:
             f"{self.name}.validate() not implemented"
         )
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         """Check provider connectivity and credentials.
 
         Returns:
@@ -79,7 +77,7 @@ class ProviderInterface:
             f"{self.name}.health() not implemented"
         )
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """Return provider configuration (non-sensitive info only).
 
         Returns:

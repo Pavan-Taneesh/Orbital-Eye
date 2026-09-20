@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
-import json
 import pytest
-
 from backend.command_system import (
+    AICommandBridge,
+    ApplicationCommand,
+    CommandExecutor,
     CommandName,
-    FindObjectParams,
+    CommandValidationError,
+    CommandValidator,
     FilterObjectsParams,
+    FindObjectParams,
     FocusObjectParams,
-    ShowOrbitParams,
     FollowObjectParams,
     OpenInformationPanelParams,
-    ApplicationCommand,
-    CommandValidator,
-    CommandValidationError,
-    CommandExecutor,
-    AICommandBridge,
+    ShowOrbitParams,
 )
 
 

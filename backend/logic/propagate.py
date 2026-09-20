@@ -5,26 +5,30 @@ compute position/velocity/altitude at a requested UTC datetime.
 Usage (standalone test):
     python logic/propagate.py <object_id>
 """
-from astropy import units as u
-from astropy.coordinates import TEME, ITRS, CartesianDifferential, CartesianRepresentation
-from astropy.time import Time
-import sys
 import math
+import os
+import sys
 from datetime import datetime, timezone
 
 import psycopg2
-
-from sgp4.api import Satrec, WGS72
-from sgp4.api import jday
+from astropy import units as u
+from astropy.coordinates import (
+    ITRS,
+    TEME,
+    CartesianDifferential,
+    CartesianRepresentation,
+)
+from astropy.time import Time
+from sgp4.api import WGS72, Satrec, jday
 
 
 def get_latest_elements(object_id: int):
     """Pull the latest (non-stale-aware) orbital_elements row for one object."""
     conn = psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="SpaceDB@2026",
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD"),
     )
     cur = conn.cursor()
     cur.execute(

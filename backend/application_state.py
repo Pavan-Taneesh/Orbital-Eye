@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any
 
 
 class LoadingState(str, Enum):
@@ -46,18 +46,18 @@ class ScientificState:
     NEVER modified by visual/camera state.
     """
 
-    object_id: Optional[int] = None
-    position: Optional[List[float]] = None  # ECEF [x, y, z] km
-    velocity: Optional[List[float]] = None  # ECEF [vx, vy, vz] km/s
-    altitude: Optional[float] = None  # km
-    epoch: Optional[str] = None  # ISO-8601
+    object_id: int | None = None
+    position: list[float] | None = None  # ECEF [x, y, z] km
+    velocity: list[float] | None = None  # ECEF [vx, vy, vz] km/s
+    altitude: float | None = None  # km
+    epoch: str | None = None  # ISO-8601
     frame: str = "ECEF"
-    source: Optional[str] = None
-    age_hours: Optional[float] = None
+    source: str | None = None
+    age_hours: float | None = None
     status: str = "unavailable"  # fresh, stale, error, unavailable
-    orbital_elements: Optional[Dict[str, Any]] = None
+    orbital_elements: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "object_id": self.object_id,
             "position": self.position,
@@ -72,7 +72,7 @@ class ScientificState:
         }
 
     @classmethod
-    def from_state_response(cls, data: Dict[str, Any]) -> "ScientificState":
+    def from_state_response(cls, data: dict[str, Any]) -> ScientificState:
         """Create from backend StateResponse."""
         return cls(
             object_id=data.get("object_id"),
@@ -95,38 +95,38 @@ class VisualState:
     """
 
     # Camera
-    camera_position: Optional[List[float]] = None
-    camera_target: Optional[List[float]] = None
-    camera_distance: Optional[float] = None
+    camera_position: list[float] | None = None
+    camera_target: list[float] | None = None
+    camera_distance: float | None = None
 
     # Selection/highlight
-    selected_object_id: Optional[int] = None
-    hovered_object_id: Optional[int] = None
+    selected_object_id: int | None = None
+    hovered_object_id: int | None = None
 
     # Orbit visualization
     show_orbit: bool = False
-    orbit_object_id: Optional[int] = None
+    orbit_object_id: int | None = None
     orbit_duration_minutes: int = 90
 
     # Follow mode
-    follow_object_id: Optional[int] = None
+    follow_object_id: int | None = None
     follow_enabled: bool = False
 
     # Information panel
     info_panel_open: bool = False
-    info_panel_object_id: Optional[int] = None
+    info_panel_object_id: int | None = None
 
     # Categories
-    selected_categories: List[int] = field(default_factory=list)  # category_ids 1-7
+    selected_categories: list[int] = field(default_factory=list)  # category_ids 1-7
 
     # Search
     search_query: str = ""
-    search_results: List[Dict[str, Any]] = field(default_factory=list)
+    search_results: list[dict[str, Any]] = field(default_factory=list)
     search_loading: LoadingState = LoadingState.IDLE
 
     # Animation
     animating: bool = False
-    animation_target: Optional[str] = None
+    animation_target: str | None = None
 
 
 @dataclass
@@ -134,22 +134,22 @@ class AIStatus:
     """AI provider status and usage tracking."""
 
     state: AIState = AIState.IDLE
-    provider: Optional[str] = None
-    model: Optional[str] = None
-    last_request: Optional[datetime] = None
-    last_response: Optional[str] = None
-    error: Optional[str] = None
-    usage: Dict[str, int] = field(default_factory=dict)  # input_tokens, output_tokens, total_tokens
+    provider: str | None = None
+    model: str | None = None
+    last_request: datetime | None = None
+    last_response: str | None = None
+    error: str | None = None
+    usage: dict[str, int] = field(default_factory=dict)  # input_tokens, output_tokens, total_tokens
     request_count: int = 0
 
-    def record_request(self, provider: str, model: str, usage: Dict[str, int] = None):
+    def record_request(self, provider: str, model: str, usage: dict[str, int] = None):
         self.state = AIState.PROCESSING
         self.provider = provider
         self.model = model
         self.last_request = datetime.utcnow()
         self.request_count += 1
 
-    def record_success(self, response: str, usage: Dict[str, int] = None):
+    def record_success(self, response: str, usage: dict[str, int] = None):
         self.state = AIState.SUCCESS
         self.last_response = response
         if usage:
@@ -181,44 +181,44 @@ class ApplicationState:
 
     # Global loading/error
     loading: LoadingState = LoadingState.IDLE
-    error: Optional[str] = None
+    error: str | None = None
 
     # Diagnostics (dev-only)
-    diagnostics: Optional[Dict[str, Any]] = None
+    diagnostics: dict[str, Any] | None = None
 
     # Object details cache
-    object_details_cache: Dict[int, Dict[str, Any]] = field(default_factory=dict)
+    object_details_cache: dict[int, dict[str, Any]] = field(default_factory=dict)
 
     def reset_scientific(self):
         """Reset scientific state (e.g., when changing objects)."""
         self.scientific = ScientificState()
 
-    def update_scientific(self, data: Dict[str, Any]):
+    def update_scientific(self, data: dict[str, Any]):
         """Update scientific state from backend response."""
         self.scientific = ScientificState.from_state_response(data)
 
-    def set_selected_object(self, object_id: Optional[int]):
+    def set_selected_object(self, object_id: int | None):
         """Set selected object (updates both scientific and visual)."""
         self.visual.selected_object_id = object_id
         if object_id is not None:
             self.visual.hovered_object_id = None
 
-    def set_hovered_object(self, object_id: Optional[int]):
+    def set_hovered_object(self, object_id: int | None):
         """Set hovered object (visual only)."""
         self.visual.hovered_object_id = object_id
 
-    def set_follow_mode(self, object_id: Optional[int], enabled: bool = True):
+    def set_follow_mode(self, object_id: int | None, enabled: bool = True):
         """Set follow mode for an object."""
         self.visual.follow_object_id = object_id if enabled else None
         self.visual.follow_enabled = enabled
 
-    def set_orbit_visibility(self, object_id: Optional[int], show: bool, duration_minutes: int = 90):
+    def set_orbit_visibility(self, object_id: int | None, show: bool, duration_minutes: int = 90):
         """Set orbit path visibility."""
         self.visual.show_orbit = show
         self.visual.orbit_object_id = object_id if show else None
         self.visual.orbit_duration_minutes = duration_minutes
 
-    def toggle_info_panel(self, object_id: Optional[int] = None):
+    def toggle_info_panel(self, object_id: int | None = None):
         """Toggle information panel."""
         if object_id is not None:
             self.visual.info_panel_object_id = object_id
@@ -226,7 +226,7 @@ class ApplicationState:
         if not self.visual.info_panel_open:
             self.visual.info_panel_object_id = None
 
-    def set_categories(self, category_ids: List[int]):
+    def set_categories(self, category_ids: list[int]):
         """Set selected category filters."""
         self.visual.selected_categories = [c for c in category_ids if 1 <= c <= 7]
 
@@ -242,16 +242,16 @@ class ApplicationState:
         """Set search query."""
         self.visual.search_query = query.strip()
 
-    def set_search_results(self, results: List[Dict[str, Any]], loading: LoadingState = LoadingState.SUCCESS):
+    def set_search_results(self, results: list[dict[str, Any]], loading: LoadingState = LoadingState.SUCCESS):
         """Set search results."""
         self.visual.search_results = results
         self.visual.search_loading = loading
 
-    def cache_object_details(self, object_id: int, details: Dict[str, Any]):
+    def cache_object_details(self, object_id: int, details: dict[str, Any]):
         """Cache object details."""
         self.object_details_cache[object_id] = details
 
-    def get_cached_object_details(self, object_id: int) -> Optional[Dict[str, Any]]:
+    def get_cached_object_details(self, object_id: int) -> dict[str, Any] | None:
         """Get cached object details."""
         return self.object_details_cache.get(object_id)
 
@@ -259,11 +259,11 @@ class ApplicationState:
         """Clear object details cache."""
         self.object_details_cache.clear()
 
-    def set_diagnostics(self, data: Optional[Dict[str, Any]]):
+    def set_diagnostics(self, data: dict[str, Any] | None):
         """Set diagnostics data (dev-only)."""
         self.diagnostics = data
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for frontend synchronization."""
         return {
             "scientific": self.scientific.to_dict(),
@@ -302,7 +302,7 @@ class ApplicationState:
 
 
 # Global application state instance
-_app_state: Optional[ApplicationState] = None
+_app_state: ApplicationState | None = None
 
 
 def get_app_state() -> ApplicationState:

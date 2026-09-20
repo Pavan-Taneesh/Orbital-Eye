@@ -5,13 +5,13 @@ for known object types (LEO ISS-like, GEO).
 """
 
 import sys
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 # allow importing from logic/ without packaging
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
 
-from propagate import get_latest_elements, build_satellite, propagate
+from propagate import build_satellite, get_latest_elements, propagate
 
 
 def test_leo_object_altitude_in_range():

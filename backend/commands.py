@@ -12,7 +12,7 @@ Typical usage:
 from __future__ import annotations
 
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def _setup_paths():
@@ -31,7 +31,7 @@ def _setup_paths():
 # Command: state
 # ---------------------------------------------------------------------------
 
-def state_command(object_id: int, when: Optional[Any] = None) -> Dict[str, Any]:
+def state_command(object_id: int, when: Any | None = None) -> dict[str, Any]:
     """Get orbital state for an object as a command-side operation.
 
     Wraps backend.services.state_service into a command-style interface
@@ -73,7 +73,7 @@ def state_command(object_id: int, when: Optional[Any] = None) -> Dict[str, Any]:
 # Command: diagnostics
 # ---------------------------------------------------------------------------
 
-def diagnose_command(object_id: int) -> Dict[str, Any]:
+def diagnose_command(object_id: int) -> dict[str, Any]:
     """Get diagnostics for an object as a command-side operation.
 
     Wraps backend.services.diagnostics_service into a command-style interface
@@ -94,7 +94,9 @@ def diagnose_command(object_id: int) -> Dict[str, Any]:
     if not isinstance(object_id, int) or object_id < 1:
         raise ValueError(f"object_id must be a positive integer, got {object_id}")
 
-    from backend.services.diagnostics_service import diagnostics_service as _diag_service
+    from backend.services.diagnostics_service import (
+        diagnostics_service as _diag_service,
+    )
 
     diag = _diag_service(object_id=object_id)
     return {
@@ -111,7 +113,7 @@ def diagnose_command(object_id: int) -> Dict[str, Any]:
 # Command: health
 # ---------------------------------------------------------------------------
 
-def health_command() -> Dict[str, str]:
+def health_command() -> dict[str, str]:
     """Return API health status as a command-side operation.
 
     Returns:
@@ -128,7 +130,7 @@ def health_command() -> Dict[str, str]:
 # Convenience: orchestration integration
 # ---------------------------------------------------------------------------
 
-def ingest_run() -> Dict[str, Any]:
+def ingest_run() -> dict[str, Any]:
     """Invoke the existing ingestion orchestration.
 
     Runs the Person 2 ingestion scripts through the orchestration boundary.
@@ -137,8 +139,8 @@ def ingest_run() -> Dict[str, Any]:
     Returns:
         Dict with execution results for each script
     """
-    import subprocess
     import os
+    import subprocess
 
     scripts = [
         "ingestion/celestrak.py",

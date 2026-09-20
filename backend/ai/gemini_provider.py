@@ -7,13 +7,16 @@ Credentials are loaded from environment variables only.
 from __future__ import annotations
 
 import os
-import json
 import time
-from typing import Any, Dict, Optional, List
+from typing import Any
 
+from .exceptions import (
+    MissingCredentialsError,
+    ProviderFailureError,
+    ProviderTimeoutError,
+)
 from .provider import ProviderInterface
 from .response import AIResponse
-from .exceptions import MissingCredentialsError, ProviderFailureError, ProviderTimeoutError
 
 
 class GeminiProvider(ProviderInterface):
@@ -28,7 +31,7 @@ class GeminiProvider(ProviderInterface):
     def __init__(
         self,
         model: str = "gemini-1.5-flash",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         default_temperature: float = 0.1,
         default_max_tokens: int = 1024,
     ) -> None:
@@ -60,10 +63,10 @@ class GeminiProvider(ProviderInterface):
     def generate(
         self,
         prompt: str,
-        system: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        timeout: Optional[float] = None,
+        system: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> AIResponse:
         """Generate a response using Gemini.
 
@@ -106,7 +109,6 @@ class GeminiProvider(ProviderInterface):
 
         start = time.time()
         try:
-            import google.generativeai as genai
             from google.generativeai.types import GenerationConfig
 
             generation_config = GenerationConfig(
@@ -179,7 +181,7 @@ class GeminiProvider(ProviderInterface):
             and response.content.strip() != ""
         )
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         """Check Gemini connectivity and credentials."""
         if not self.api_key:
             return {
@@ -227,7 +229,7 @@ class GeminiProvider(ProviderInterface):
                 "error": str(exc)
             }
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """Return provider configuration (non-sensitive info only)."""
         return {
             "provider": self.name,

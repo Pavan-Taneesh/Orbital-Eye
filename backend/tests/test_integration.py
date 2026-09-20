@@ -9,24 +9,20 @@ The backend API calls are mocked / skipped when the server is unavailable.
 from __future__ import annotations
 
 import pytest
-
-from backend.ai_exploration import AIExplorationService, ExplorationContext, ExplorationResult
-from backend.ai import make_service, FakeProvider
+from backend.ai import FakeProvider, make_service
+from backend.ai_exploration import (
+    AIExplorationService,
+    ExplorationContext,
+)
+from backend.application_state import (
+    get_app_state,
+    reset_app_state,
+)
 from backend.command_system import (
     AICommandBridge,
     ApplicationCommand,
     CommandExecutor,
     CommandName,
-    CommandValidationError,
-)
-from backend.application_state import (
-    ApplicationState,
-    get_app_state,
-    reset_app_state,
-    ScientificState,
-    VisualState,
-    AIStatus,
-    LoadingState,
 )
 
 
@@ -203,7 +199,6 @@ class TestErrorFlows:
     def test_ai_with_missing_credentials(self):
         """AI provider reports missing credentials."""
         from backend.ai import GeminiProvider
-        from backend.ai.exceptions import MissingCredentialsError
 
         provider = GeminiProvider(api_key=None)
         ai_service = make_service("fake")

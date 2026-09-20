@@ -11,12 +11,9 @@ where appropriate.
 
 from __future__ import annotations
 
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import psycopg2
 from fastapi import HTTPException
-
 
 
 def _validate_object_id(object_id: int) -> None:
@@ -30,10 +27,10 @@ def _validate_object_id(object_id: int) -> None:
 
 def search_objects(
     q: str = "",
-    category: Optional[int] = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search objects with optional query and category filter.
 
     Application-level orchestration for GET /api/v1/objects/search.
@@ -91,10 +88,10 @@ def search_objects(
 
 
 def list_objects(
-    category: Optional[int] = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """List objects with optional category filter.
 
     Application-level orchestration for GET /api/v1/objects.
@@ -112,7 +109,7 @@ def list_objects(
     offset = max(0, offset)
 
     base_where = ""
-    params: List[Any] = []
+    params: list[Any] = []
     if category is not None:
         base_where = "WHERE category_id = %s"
         params.append(category)
@@ -149,7 +146,7 @@ def list_objects(
     }
 
 
-def get_object(object_id: int) -> Dict[str, Any]:
+def get_object(object_id: int) -> dict[str, Any]:
     """Get a single object's full details.
 
     Application-level orchestration for GET /api/v1/objects/{object_id}.
@@ -215,7 +212,7 @@ def get_object(object_id: int) -> Dict[str, Any]:
     return od.model_dump()
 
 
-def get_object_media(object_id: int) -> Dict[str, Any]:
+def get_object_media(object_id: int) -> dict[str, Any]:
     """Get media attachments for a single object.
 
     Application-level orchestration for GET /api/v1/objects/{object_id}/media.

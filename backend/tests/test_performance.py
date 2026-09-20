@@ -6,21 +6,20 @@ without requiring external dependencies.
 
 from __future__ import annotations
 
-import time
 import statistics
-import pytest
+import time
 
+import pytest
+from backend.ai import FakeProvider, make_service
+from backend.ai_exploration import AIExplorationService
+from backend.application_state import get_app_state, reset_app_state
 from backend.command_system import (
-    CommandValidator,
-    CommandExecutor,
     AICommandBridge,
     ApplicationCommand,
+    CommandExecutor,
     CommandName,
-    FocusObjectParams,
+    CommandValidator,
 )
-from backend.ai_exploration import AIExplorationService, ExplorationContext
-from backend.ai import make_service, FakeProvider
-from backend.application_state import get_app_state, reset_app_state
 
 
 class TestCommandSystemPerformance:

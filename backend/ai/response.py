@@ -7,7 +7,7 @@ provider interface nor the service layer creates a circular import.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, List
+from typing import Any
 
 
 class AIResponse:
@@ -21,10 +21,10 @@ class AIResponse:
         self,
         content: str,
         role: str = "assistant",
-        model: Optional[str] = None,
-        usage: Optional[Dict[str, int]] = None,
-        finish_reason: Optional[str] = None,
-        raw: Optional[Dict[str, Any]] = None,
+        model: str | None = None,
+        usage: dict[str, int] | None = None,
+        finish_reason: str | None = None,
+        raw: dict[str, Any] | None = None,
     ):
         self.content = content
         self.role = role
@@ -41,7 +41,7 @@ class AIResponse:
     def token_count(self) -> int:
         return self.usage.get("total", 0)
 
-    def model_dump(self) -> Dict[str, Any]:
+    def model_dump(self) -> dict[str, Any]:
         return {
             "content": self.content,
             "role": self.role,

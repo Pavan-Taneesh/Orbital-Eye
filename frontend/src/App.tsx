@@ -3,6 +3,7 @@ import { OrbitControls } from '@react-three/drei'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, MutableRefObject } from 'react'
 import * as THREE from 'three'
+import { api, type ObjectSummary } from './lib/types'
 
 const EARTH_RADIUS = 2.2
 
@@ -24,68 +25,89 @@ function loadTexture(
 }
 
 /* ============================================================
-   DUMMY SATELLITE DATA
-   ------------------------------------------------------------
-   Placeholder only. The backend dev will swap this for real
-   TLE/ECMP-driven positions later — everything downstream
-   (orbit rings, dots, search, fly-to) just reads from this
-   shape, so wiring in real data means replacing this array
-   (and eventually driving `phaseDeg`/position live) without
-   touching the render code.
+   SATELLITE DATA — loaded from backend API
    ============================================================ */
 
 type Category = {
   id: string
   name: string
   color: string
+  backendCategoryId: number
 }
 
 type SatelliteDef = {
   id: string
   name: string
-  categoryId: string
-  orbitRadiusFactor: number // multiple of EARTH_RADIUS
+  categoryId: string // frontend category ID
+  backendCategoryId: number
+  orbitRadiusFactor: number
   inclinationDeg: number
   phaseDeg: number
-  // Kept in the data shape for continuity with the previous live-orbit
-  // build; no longer used to animate position. Satellites are now fixed
-  // dots placed at `phaseDeg` — the teammate-owned monthly data refresh
-  // updates phaseDeg/inclinationDeg/orbitRadiusFactor directly instead.
   speed: number
+  noradId: number
 }
 
+// Map backend category_id (1-7) to frontend category IDs
+const BACKEND_TO_FRONTEND_CATEGORY: Record<number, string> = {
+  1: 'sci', // Space Stations
+  2: 'nav', // Navigation
+  3: 'comm', // Communication
+  4: 'wx', // Weather
+  5: 'sci', // Scientific
+  6: 'comm', // Rocket Bodies -> Communication
+  7: 'eo', // Space Debris -> Earth Observation
+}
+
+// Frontend category definitions (preserving existing UI colors/labels)
 const CATEGORIES: Category[] = [
-  { id: 'comm', name: 'Communication', color: '#4fd3ff' },
-  { id: 'nav', name: 'Navigation', color: '#ffcf4f' },
-  { id: 'eo', name: 'Earth Observation', color: '#6fff9f' },
-  { id: 'wx', name: 'Weather', color: '#ff6f91' },
-  { id: 'sci', name: 'Scientific', color: '#b58bff' },
+  { id: 'comm', name: 'Communication', color: '#4fd3ff', backendCategoryId: 3 },
+  { id: 'nav', name: 'Navigation', color: '#ffcf4f', backendCategoryId: 2 },
+  { id: 'eo', name: 'Earth Observation', color: '#6fff9f', backendCategoryId: 7 },
+  { id: 'wx', name: 'Weather', color: '#ff6f91', backendCategoryId: 4 },
+  { id: 'sci', name: 'Scientific', color: '#b58bff', backendCategoryId: 1 },
 ]
 
-const SATELLITES: SatelliteDef[] = [
-  { id: 'iridium-12', name: 'Iridium 12', categoryId: 'comm', orbitRadiusFactor: 1.35, inclinationDeg: 86, phaseDeg: 10, speed: 0.22 },
-  { id: 'starlink-4021', name: 'Starlink 4021', categoryId: 'comm', orbitRadiusFactor: 1.28, inclinationDeg: 53, phaseDeg: 140, speed: 0.26 },
-  { id: 'intelsat-901', name: 'Intelsat 901', categoryId: 'comm', orbitRadiusFactor: 2.35, inclinationDeg: 3, phaseDeg: 250, speed: 0.05 },
-
-  { id: 'gps-iif-9', name: 'GPS IIF-9', categoryId: 'nav', orbitRadiusFactor: 2.05, inclinationDeg: 55, phaseDeg: 30, speed: 0.09 },
-  { id: 'galileo-21', name: 'Galileo 21', categoryId: 'nav', orbitRadiusFactor: 2.15, inclinationDeg: 56, phaseDeg: 190, speed: 0.08 },
-  { id: 'glonass-m758', name: 'GLONASS-M 758', categoryId: 'nav', orbitRadiusFactor: 2.0, inclinationDeg: 64, phaseDeg: 300, speed: 0.1 },
-
-  { id: 'landsat-9', name: 'Landsat 9', categoryId: 'eo', orbitRadiusFactor: 1.45, inclinationDeg: 98, phaseDeg: 60, speed: 0.19 },
-  { id: 'sentinel-2b', name: 'Sentinel-2B', categoryId: 'eo', orbitRadiusFactor: 1.42, inclinationDeg: 98, phaseDeg: 200, speed: 0.2 },
-  { id: 'worldview-3', name: 'WorldView-3', categoryId: 'eo', orbitRadiusFactor: 1.38, inclinationDeg: 97, phaseDeg: 320, speed: 0.21 },
-
-  { id: 'noaa-20', name: 'NOAA-20', categoryId: 'wx', orbitRadiusFactor: 1.5, inclinationDeg: 99, phaseDeg: 90, speed: 0.18 },
-  { id: 'goes-18', name: 'GOES-18', categoryId: 'wx', orbitRadiusFactor: 2.3, inclinationDeg: 0, phaseDeg: 160, speed: 0.05 },
-  { id: 'himawari-9', name: 'Himawari-9', categoryId: 'wx', orbitRadiusFactor: 2.32, inclinationDeg: 0, phaseDeg: 260, speed: 0.05 },
-
-  { id: 'hubble', name: 'Hubble Space Telescope', categoryId: 'sci', orbitRadiusFactor: 1.25, inclinationDeg: 28, phaseDeg: 20, speed: 0.24 },
-  { id: 'iss', name: 'International Space Station', categoryId: 'sci', orbitRadiusFactor: 1.2, inclinationDeg: 52, phaseDeg: 110, speed: 0.28 },
-  { id: 'jwst-relay', name: 'JWST Comms Relay', categoryId: 'sci', orbitRadiusFactor: 2.6, inclinationDeg: 12, phaseDeg: 340, speed: 0.03 },
-]
+type AICommandResult = {
+  command: string
+  result?: {
+    data?: {
+      object?: { object_id: number }
+      object_id?: number
+      results?: Array<{ object_id: number }>
+      category?: number
+      count?: number
+      total_count?: number
+      limit?: number
+      offset?: number
+      has_more?: boolean
+    }
+  }
+}
 
 function categoryColor(categoryId: string): string {
   return CATEGORIES.find((c) => c.id === categoryId)?.color ?? '#ffffff'
+}
+
+function mapObjectSummaryToSatellite(obj: ObjectSummary): SatelliteDef {
+  const frontendCategoryId = BACKEND_TO_FRONTEND_CATEGORY[obj.category_id] ?? 'sci'
+  // Generate deterministic but varied orbital parameters based on NORAD ID
+  const norad = obj.norad_id
+  const orbitRadiusFactor = 1.2 + ((norad * 7) % 100) / 100 * 1.5 // 1.2 - 2.7
+  const inclinationDeg = (norad * 13) % 180 // 0 - 179
+  const phaseDeg = (norad * 17) % 360 // 0 - 359
+  const speed = 0.05 + ((norad * 11) % 100) / 100 * 0.25 // 0.05 - 0.30
+
+  return {
+    id: `obj-${obj.object_id}`,
+    name: obj.name,
+    categoryId: frontendCategoryId,
+    backendCategoryId: obj.category_id,
+    orbitRadiusFactor,
+    inclinationDeg,
+    phaseDeg,
+    speed,
+    noradId: obj.norad_id,
+  }
 }
 
 /* ============================================================
@@ -436,7 +458,7 @@ function satellitePosition(sat: SatelliteDef): THREE.Vector3 {
 }
 
 function SelectedOrbit({ sat }: { sat: SatelliteDef }) {
-  const geometry = useMemo(() => {
+  const positionAttribute = useMemo(() => {
     const segments = 192
     const radius = EARTH_RADIUS * sat.orbitRadiusFactor
     const inclination = (sat.inclinationDeg * Math.PI) / 180
@@ -452,16 +474,15 @@ function SelectedOrbit({ sat }: { sat: SatelliteDef }) {
       positions[i * 3 + 2] = v.z
     }
 
-    const g = new THREE.BufferGeometry()
-    g.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    return g
+    return new THREE.BufferAttribute(positions, 3)
   }, [sat])
 
   const color = categoryColor(sat.categoryId)
 
   return (
     <>
-      <line geometry={geometry}>
+      <line>
+        <bufferGeometry attach="geometry" attributes={{ position: positionAttribute }} />
         <lineBasicMaterial
           color={color}
           transparent
@@ -470,7 +491,8 @@ function SelectedOrbit({ sat }: { sat: SatelliteDef }) {
           toneMapped={false}
         />
       </line>
-      <line geometry={geometry} scale={1.002}>
+      <line scale={1.002}>
+        <bufferGeometry attach="geometry" attributes={{ position: positionAttribute }} />
         <lineBasicMaterial
           color="#ffffff"
           transparent
@@ -526,12 +548,14 @@ function SatellitesLayer({
   onSelect,
   onHover,
   positionsRef,
+  satellites,
 }: {
   activeCategories: Set<string>
   selectedId: string | null
   onSelect: (id: string) => void
   onHover: (id: string | null) => void
   positionsRef: MutableRefObject<Map<string, THREE.Vector3>>
+  satellites: SatelliteDef[]
 }) {
   const pointsRef = useRef<THREE.Points>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
@@ -540,11 +564,11 @@ function SatellitesLayer({
   const particleTexture = useMemo(() => createSatelliteParticleTexture(), [])
 
   const { positions, colors, positionsById } = useMemo(() => {
-    const positions = new Float32Array(SATELLITES.length * 3)
-    const colors = new Float32Array(SATELLITES.length * 3)
+    const positions = new Float32Array(satellites.length * 3)
+    const colors = new Float32Array(satellites.length * 3)
     const positionsById = new Map<string, THREE.Vector3>()
 
-    SATELLITES.forEach((sat, index) => {
+    satellites.forEach((sat, index) => {
       const pos = satellitePosition(sat)
       positions[index * 3] = pos.x
       positions[index * 3 + 1] = pos.y
@@ -558,24 +582,24 @@ function SatellitesLayer({
     })
 
     return { positions, colors, positionsById }
-  }, [])
+  }, [satellites])
 
   useEffect(() => {
     positionsRef.current.clear()
-    SATELLITES.forEach((sat) => {
+    satellites.forEach((sat) => {
       if (activeCategories.has(sat.categoryId)) {
         const pos = positionsById.get(sat.id)
         if (pos) positionsRef.current.set(sat.id, pos)
       }
     })
-  }, [activeCategories, positionsById, positionsRef])
+  }, [activeCategories, positionsById, positionsRef, satellites])
 
   useEffect(() => {
     if (!pointsRef.current) return
     const attribute = pointsRef.current.geometry.getAttribute('color') as THREE.BufferAttribute
     const array = attribute.array as Float32Array
 
-    SATELLITES.forEach((sat, index) => {
+    satellites.forEach((sat, index) => {
       const selected = sat.id === selectedId
       const hovered = index === hoveredIndex
       const active = activeCategories.has(sat.categoryId)
@@ -586,7 +610,7 @@ function SatellitesLayer({
       array[index * 3 + 2] = base.b * multiplier
     })
     attribute.needsUpdate = true
-  }, [activeCategories, hoveredIndex, selectedId])
+  }, [activeCategories, hoveredIndex, selectedId, satellites])
 
   useEffect(() => {
     if (pointsRef.current) {
@@ -673,7 +697,7 @@ function SatellitesLayer({
     const index = typeof event.index === 'number' ? event.index : null
     if (index === hoveredIndex) return
     setHoveredIndex(index)
-    onHover(index === null ? null : SATELLITES[index]?.id ?? null)
+    onHover(index === null ? null : satellites[index]?.id ?? null)
   }
 
   const handlePointerOut = () => {
@@ -697,7 +721,7 @@ function SatellitesLayer({
     }
 
     const index = typeof event.index === 'number' ? event.index : -1
-    if (index >= 0 && SATELLITES[index]) onSelect(SATELLITES[index].id)
+    if (index >= 0 && satellites[index]) onSelect(satellites[index].id)
   }
 
   return (
@@ -750,7 +774,7 @@ function SatellitesLayer({
       </points>
 
       {selectedId && (() => {
-        const selectedSat = SATELLITES.find((sat) => sat.id === selectedId)
+        const selectedSat = satellites.find((sat) => sat.id === selectedId)
         if (!selectedSat) return null
         const selectedPosition = positionsById.get(selectedSat.id)
         if (!selectedPosition) return null
@@ -804,7 +828,7 @@ function SatellitesLayer({
    CAMERA RIG — handles "fly to satellite" + live tracking
    ============================================================ */
 
-function CameraRig({ phase, selectedId }: { phase: IntroPhase; selectedId: string | null }) {
+function CameraRig({ phase, selectedId, satellites }: { phase: IntroPhase; selectedId: string | null; satellites: SatelliteDef[] }) {
   const { controls, camera } = useThree((s) => ({ controls: s.controls, camera: s.camera })) as unknown as {
     controls: { target: THREE.Vector3; update: () => void; enabled?: boolean } | null
     camera: THREE.PerspectiveCamera
@@ -827,7 +851,7 @@ function CameraRig({ phase, selectedId }: { phase: IntroPhase; selectedId: strin
     controls.target.set(0, 0, 0)
 
     if (selectedId) {
-      const sat = SATELLITES.find((item) => item.id === selectedId)
+      const sat = satellites.find((item) => item.id === selectedId)
       if (!sat) return
 
       const satPosition = satellitePosition(sat)
@@ -861,7 +885,7 @@ function CameraRig({ phase, selectedId }: { phase: IntroPhase; selectedId: strin
       }
       if ('enabled' in controls) controls.enabled = false
     }
-  }, [phase, selectedId, controls, camera])
+  }, [phase, selectedId, controls, camera, satellites])
 
   useFrame((_, delta) => {
     if (phase !== 'main' || !controls) return
@@ -922,6 +946,7 @@ function Scene({
   selectedId,
   onSelectSatellite,
   positionsRef,
+  satellites,
 }: {
   phase: IntroPhase
   onEarthReady?: () => void
@@ -930,6 +955,7 @@ function Scene({
   selectedId: string | null
   onSelectSatellite: (id: string) => void
   positionsRef: MutableRefObject<Map<string, THREE.Vector3>>
+  satellites: SatelliteDef[]
 }) {
   return (
     <>
@@ -948,6 +974,7 @@ function Scene({
           onSelect={onSelectSatellite}
           onHover={() => {}}
           positionsRef={positionsRef}
+          satellites={satellites}
         />
       )}
 
@@ -966,7 +993,7 @@ function Scene({
         onEnd={() => { document.body.style.cursor = 'auto' }}
       />
 
-      <CameraRig phase={phase} selectedId={selectedId} />
+      <CameraRig phase={phase} selectedId={selectedId} satellites={satellites} />
     </>
   )
 }
@@ -1021,6 +1048,9 @@ function ExplorationSidebar({
   selectedId,
   onSelectSatellite,
   onClearSelection,
+  satellites,
+  satellitesLoading,
+  satellitesError,
 }: {
   activeCategories: Set<string>
   toggleCategory: (id: string) => void
@@ -1029,6 +1059,9 @@ function ExplorationSidebar({
   selectedId: string | null
   onSelectSatellite: (id: string) => void
   onClearSelection: () => void
+  satellites: SatelliteDef[]
+  satellitesLoading: boolean
+  satellitesError: string | null
 }) {
   return (
     <div className={`side-panel sidebar-panel ${mobileOpen ? 'is-open' : ''}`}>
@@ -1045,12 +1078,15 @@ function ExplorationSidebar({
       </div>
 
       <div className="exploration-search-wrap">
-        <SatelliteSearch selectedId={selectedId} onGo={onSelectSatellite} onClear={onClearSelection} />
+        <SatelliteSearch selectedId={selectedId} onGo={onSelectSatellite} onClear={onClearSelection} satellites={satellites} />
       </div>
+
+      {satellitesLoading && <div className="loading-indicator">Loading satellites…</div>}
+      {satellitesError && <div className="error-message">{satellitesError}</div>}
 
       <div className="panel-scroll">
         {CATEGORIES.map((cat) => {
-          const sats = SATELLITES.filter((s) => s.categoryId === cat.id)
+          const sats = satellites.filter((s) => s.categoryId === cat.id)
           const active = activeCategories.has(cat.id)
 
           return (
@@ -1085,26 +1121,59 @@ function ExplorationSidebar({
 }
 
 /* ============================================================
-   AI ASSISTANT PANEL (right) — placeholder pending Gemini wiring
+   AI ASSISTANT PANEL (right) — wired to backend AI exploration
    ============================================================ */
 
-function AIPanel({ mobileOpen, setMobileOpen, satelliteInfoOpen }: { mobileOpen: boolean; setMobileOpen: (v: boolean) => void; satelliteInfoOpen: boolean }) {
+function AIPanel({
+  mobileOpen,
+  setMobileOpen,
+  satelliteInfoOpen,
+  onExecuteCommand,
+}: {
+  mobileOpen: boolean
+  setMobileOpen: (v: boolean) => void
+  satelliteInfoOpen: boolean
+  onExecuteCommand: (result: AICommandResult) => void
+}) {
   const [messages, setMessages] = useState<{ role: 'assistant' | 'user'; text: string }[]>([
     {
       role: 'assistant',
-      text: 'Ask me about any satellite, orbit, or category. Once the Gemini API is wired in here, I\u2019ll be able to fly the camera and select satellites for you directly.',
+      text: 'Ask me about any satellite, orbit, or category. I can fly the camera and select satellites for you.',
     },
   ])
   const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const send = () => {
-    if (!input.trim()) return
-    setMessages((m) => [
-      ...m,
-      { role: 'user', text: input },
-      { role: 'assistant', text: '(Gemini connection pending \u2014 this reply is a placeholder.)' },
-    ])
+  const send = async () => {
+    const text = input.trim()
+    if (!text || loading) return
+    setLoading(true)
+    setMessages((m) => [...m, { role: 'user', text }])
     setInput('')
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'}/ai/explore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request: text }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        const cmd = data.command ? `✓ Executed: ${data.command}` : '✓ Done'
+        const detail = data.result ? ` — ${JSON.stringify(data.result).slice(0, 200)}` : ''
+        setMessages((m) => [...m, { role: 'assistant', text: `${cmd}${detail}` }])
+        if (data.command) {
+          onExecuteCommand({ command: data.command, result: data.result })
+        }
+      } else {
+        const err = data.error || 'Unknown error'
+        setMessages((m) => [...m, { role: 'assistant', text: `✗ ${err}` }])
+      }
+    } catch {
+      setMessages((m) => [...m, { role: 'assistant', text: '✗ Request failed. Check backend connection.' }])
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -1148,8 +1217,11 @@ function AIPanel({ mobileOpen, setMobileOpen, satelliteInfoOpen }: { mobileOpen:
             if (e.key === 'Enter') send()
           }}
           placeholder="Ask the assistant…"
+          disabled={loading}
         />
-        <button onClick={send}>Send</button>
+        <button onClick={send} disabled={loading}>
+          {loading ? '…' : 'Send'}
+        </button>
       </div>
       </div>
     </>
@@ -1164,10 +1236,12 @@ function SatelliteSearch({
   selectedId,
   onGo,
   onClear,
+  satellites,
 }: {
   selectedId: string | null
   onGo: (id: string) => void
   onClear: () => void
+  satellites: SatelliteDef[]
 }) {
   const [query, setQuery] = useState('')
   const [notFound, setNotFound] = useState(false)
@@ -1177,7 +1251,7 @@ function SatelliteSearch({
     const q = query.trim().toLowerCase()
     if (!q) return
 
-    const match = SATELLITES.find((s) => s.name.toLowerCase().includes(q))
+    const match = satellites.find((s) => s.name.toLowerCase().includes(q))
     if (match) {
       setNotFound(false)
       onGo(match.id)
@@ -1186,7 +1260,7 @@ function SatelliteSearch({
     }
   }
 
-  const selectedSat = selectedId ? SATELLITES.find((s) => s.id === selectedId) : null
+  const selectedSat = selectedId ? satellites.find((s) => s.id === selectedId) : null
 
   return (
     <form className="satellite-search" onSubmit={submit}>
@@ -1227,9 +1301,9 @@ function SatelliteSearch({
   )
 }
 
-function SatelliteInfoCard({ selectedId, onClear }: { selectedId: string | null; onClear: () => void }) {
+function SatelliteInfoCard({ selectedId, onClear, satellites }: { selectedId: string | null; onClear: () => void; satellites: SatelliteDef[] }) {
   if (!selectedId) return null
-  const sat = SATELLITES.find((s) => s.id === selectedId)
+  const sat = satellites.find((s) => s.id === selectedId)
   if (!sat) return null
   const category = CATEGORIES.find((c) => c.id === sat.categoryId)
 
@@ -1269,6 +1343,38 @@ export default function App() {
 
   const canEnter = starsReady || earthReady || forceReady
 
+  // Satellite data from API
+  const [satellites, setSatellites] = useState<SatelliteDef[]>([])
+  const [satellitesLoading, setSatellitesLoading] = useState(true)
+  const [satellitesError, setSatellitesError] = useState<string | null>(null)
+
+  // Load satellite data from API
+  useEffect(() => {
+    let cancelled = false
+    async function loadSatellites() {
+      try {
+        setSatellitesLoading(true)
+        setSatellitesError(null)
+        const response = await api.list({ limit: 100 })
+        if (!cancelled) {
+          const mapped = response.results.map(mapObjectSummaryToSatellite)
+          setSatellites(mapped)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const error = err as Error
+          setSatellitesError(error.message || 'Failed to load satellites')
+        }
+      } finally {
+        if (!cancelled) {
+          setSatellitesLoading(false)
+        }
+      }
+    }
+    loadSatellites()
+    return () => { cancelled = true }
+  }, [])
+
   // Satellite / UI state
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
     () => new Set(CATEGORIES.map((c) => c.id)),
@@ -1289,7 +1395,7 @@ export default function App() {
   }
 
   const goToSatellite = (id: string) => {
-    const sat = SATELLITES.find((s) => s.id === id)
+    const sat = satellites.find((s) => s.id === id)
     if (sat && !activeCategories.has(sat.categoryId)) {
       setActiveCategories((prev) => new Set(prev).add(sat.categoryId))
     }
@@ -1300,6 +1406,51 @@ export default function App() {
 
   const clearSelection = () => {
     setSelectedId(null)
+  }
+
+  const executeAICommand = (cmdResult: AICommandResult) => {
+    const { command, result } = cmdResult
+    const objectId = result?.data?.object?.object_id ?? result?.data?.object_id
+    const satId = objectId ? String(objectId) : null
+
+    const paginatedData = result?.data as { results?: Array<{ object_id: number }> } | undefined
+    const firstResult = paginatedData?.results?.[0]
+    const firstResultId = firstResult ? `obj-${firstResult.object_id}` : null
+
+    switch (command) {
+      case 'focus_object':
+      case 'follow_object':
+      case 'show_orbit':
+      case 'open_information_panel':
+        if (satId) {
+          goToSatellite(satId)
+        }
+        break
+      case 'find_object':
+        if (firstResultId) {
+          goToSatellite(firstResultId)
+        }
+        break
+      case 'filter_objects':
+        if (firstResultId) {
+          goToSatellite(firstResultId)
+        }
+        const filterCategory = result?.data?.category as number | undefined
+        if (filterCategory !== undefined) {
+          const frontendCat = BACKEND_TO_FRONTEND_CATEGORY[filterCategory]
+          if (frontendCat) {
+            setActiveCategories((prev) => {
+              const next = new Set(prev)
+              next.clear()
+              next.add(frontendCat)
+              return next
+            })
+          }
+        }
+        break
+      default:
+        break
+    }
   }
 
   const handleEnter = () => {
@@ -1342,6 +1493,7 @@ export default function App() {
             selectedId={selectedId}
             onSelectSatellite={goToSatellite}
             positionsRef={positionsRef}
+            satellites={satellites}
           />
         </Canvas>
       </div>
@@ -1378,10 +1530,13 @@ export default function App() {
             selectedId={selectedId}
             onSelectSatellite={goToSatellite}
             onClearSelection={clearSelection}
+            satellites={satellites}
+            satellitesLoading={satellitesLoading}
+            satellitesError={satellitesError}
           />
 
-          <AIPanel mobileOpen={aiOpen} setMobileOpen={setAiOpen} satelliteInfoOpen={Boolean(selectedId)} />
-          <SatelliteInfoCard selectedId={selectedId} onClear={clearSelection} />
+          <AIPanel mobileOpen={aiOpen} setMobileOpen={setAiOpen} satelliteInfoOpen={Boolean(selectedId)} onExecuteCommand={executeAICommand} />
+          <SatelliteInfoCard selectedId={selectedId} onClear={clearSelection} satellites={satellites} />
           <div className="earth-controls-hint">
             DRAG TO ROTATE&nbsp;&nbsp;·&nbsp;&nbsp;SCROLL TO ZOOM
           </div>

@@ -9,13 +9,14 @@ Do NOT rewrite propagation or scientific algorithms.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
-from logic.state_model import get_state  # type: ignore
 from fastapi import HTTPException
 
+from logic.state_model import get_state  # type: ignore
 
-def state_service(object_id: int, when: Optional[Any] = None) -> Dict[str, Any]:
+
+def state_service(object_id: int, when: Any | None = None) -> dict[str, Any]:
     """Get orbital state for an object.
 
     Application-level orchestration for GET /api/v1/objects/{object_id}/state.

@@ -11,8 +11,7 @@ import os
 from datetime import datetime, timezone
 
 import psycopg2
-
-from propagate import get_latest_elements, build_satellite
+from propagate import build_satellite, get_latest_elements
 from sgp4.api import jday
 
 STALE_THRESHOLD_HOURS = 24
@@ -23,7 +22,7 @@ def connect():
         host=os.getenv("DB_HOST", "localhost"),
         dbname=os.getenv("DB_NAME", "project_db"),
         user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", ""),
+        password=os.getenv("DB_PASSWORD"),
     )
 
 

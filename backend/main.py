@@ -15,14 +15,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "logic"))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from schemas import (
-    HealthResponse,
-    PaginatedResponse,
-    ObjectDetails,
-    StateResponse,
     DiagnosticsResponse,
+    HealthResponse,
     MediaResponse,
+    ObjectDetails,
+    PaginatedResponse,
+    StateResponse,
 )
 
 app = FastAPI(title="Space-website API", version="0.1.0")
@@ -37,8 +38,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from services import health_service, state_service, diagnostics_service
+from services import diagnostics_service, health_service, state_service
 
+
+class AIExploreRequest(BaseModel):
+    request: str
+
+
+class AIExploreResponse(BaseModel):
+    success: bool
+    command: str | None = None
+    result: dict | None = None
+    ai_response: str | None = None
+    error: str | None = None
+    error_type: str | None = None
+    latency_ms: float = 0.0
+    tokens_used: dict = {}
 
 # ---------------------------------------------------------------------------
 # Health
@@ -241,3 +256,49 @@ def get_object_media(object_id: int):
         ) from exc
 
     return data
+
+
+# ---------------------------------------------------------------------------
+# AI Exploration
+# ---------------------------------------------------------------------------
+
+@app.post("/api/v1/ai/explore", response_model=AIExploreResponse)
+def ai_explore(req: AIExploreRequest):
+    """POST /api/v1/ai/explore
+
+    Accepts a natural language request and processes it through the AI
+    exploration pipeline (AI provider → validation → command execution).
+
+    Args:
+        req: AIExploreRequest with natural language "request" field
+
+    Returns:
+        AIExploreResponse with command execution result
+    """
+    from ai_exploration import AIExplorationService, make_service
+    from command_system import AICommandBridge, CommandExecutor
+    from client import APIClient
+
+    # Use fake provider by default; can be overridden via env var
+    import os
+    provider_name = os.getenv("AI_PROVIDER", "fake")
+    ai_service = make_service(provider_name)
+
+    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    api_client = APIClient(base_url=base_url)
+    executor = CommandExecutor(api_client=api_client)
+    bridge = AICommandBridge(executor=executor)
+    service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
+
+    result = service.explore(req.request)
+
+    return AIExploreResponse(
+        success=result.success,
+        command=result.command,
+        result=result.result,
+        ai_response=result.ai_response,
+        error=result.error,
+        error_type=result.error_type,
+        latency_ms=result.latency_ms,
+        tokens_used=result.tokens_used,
+    )

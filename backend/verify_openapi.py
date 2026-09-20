@@ -1,7 +1,5 @@
 """Verify the OpenAPI schema by starting the server and inspecting /openapi.json."""
 import json
-import os
-import signal
 import subprocess
 import sys
 import time
@@ -24,7 +22,7 @@ try:
     req = urllib.request.Request("http://127.0.0.1:8000/openapi.json")
     with urllib.request.urlopen(req, timeout=5) as response:
         schema = json.loads(response.read().decode())
-    print(f"OpenAPI schema fetched successfully!")
+    print("OpenAPI schema fetched successfully!")
     print(f"Number of paths: {len(schema.get('paths', {}))}")
 
     # Check for key endpoints

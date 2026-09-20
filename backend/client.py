@@ -13,27 +13,17 @@ Typical usage:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 
 from .schemas import (
-    HealthCheckRequest,
-    SearchParams,
-    ListParams,
-    ObjectIdPath,
-    MediaQuery,
-    HealthResponse,
-    ObjectSummary,
-    PaginatedResponse,
-    ObjectDetails,
-    MediaResponseItem,
-    StateResponse,
     DiagnosticsResponse,
-    StalenessInfo,
-    IngestionHistoryItem,
+    HealthResponse,
     MediaResponse,
-    ErrorResponse,
+    ObjectDetails,
+    PaginatedResponse,
+    StateResponse,
 )
 
 
@@ -54,8 +44,8 @@ class APIClient:
         self,
         method: str,
         path: str,
-        params: Optional[Dict[str, Any]] = None,
-        json: Optional[Any] = None,
+        params: dict[str, Any] | None = None,
+        json: Any | None = None,
     ) -> httpx.Response:
         """Make an HTTP request and return the raw response."""
         url = f"{self.base_url}{path}"
@@ -95,7 +85,7 @@ class APIClient:
     # Search
     # -----------------------------------------------------------------
 
-    def search(self, q: str = "", category: Optional[int] = None, limit: int = 20, offset: int = 0) -> PaginatedResponse:
+    def search(self, q: str = "", category: int | None = None, limit: int = 20, offset: int = 0) -> PaginatedResponse:
         """GET /api/v1/objects/search
 
         Args:
@@ -120,7 +110,7 @@ class APIClient:
     # List
     # -----------------------------------------------------------------
 
-    def list(self, category: Optional[int] = None, limit: int = 20, offset: int = 0) -> PaginatedResponse:
+    def list(self, category: int | None = None, limit: int = 20, offset: int = 0) -> PaginatedResponse:
         """GET /api/v1/objects
 
         Args:
@@ -239,7 +229,7 @@ class APIError(Exception):
         self,
         status_code: int,
         detail: str,
-        response: Optional[Dict[str, Any]] = None,
+        response: dict[str, Any] | None = None,
     ) -> None:
         self.status_code = status_code
         self.detail = detail

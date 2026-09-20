@@ -6,13 +6,13 @@ package internals, avoiding circular imports.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, List
+from typing import Any
 
 
 class MissingCredentialsError(Exception):
     """Raised when a provider lacks the required credentials/configuration."""
 
-    def __init__(self, provider_name: str, missing: List[str]):
+    def __init__(self, provider_name: str, missing: list[str]):
         self.provider_name = provider_name
         self.missing = missing
         super().__init__(
@@ -27,8 +27,8 @@ class ProviderFailureError(Exception):
         self,
         provider_name: str,
         message: str,
-        status_code: Optional[int] = None,
-        raw: Optional[Dict[str, Any]] = None,
+        status_code: int | None = None,
+        raw: dict[str, Any] | None = None,
     ):
         self.provider_name = provider_name
         self.message = message

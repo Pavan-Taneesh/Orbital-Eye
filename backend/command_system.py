@@ -11,10 +11,11 @@ Commands are validated before execution. AI output is NEVER trusted directly.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field, validator
 from datetime import datetime
+from enum import Enum
+from typing import Any, Union
+
+from pydantic import BaseModel, Field, validator
 
 
 class CommandName(str, Enum):
@@ -32,13 +33,13 @@ class FindObjectParams(BaseModel):
     """Parameters for find_object command."""
 
     query: str = Field(..., min_length=1, max_length=200, description="Search query")
-    category: Optional[int] = Field(default=None, ge=1, le=7, description="Optional category filter")
+    category: int | None = Field(default=None, ge=1, le=7, description="Optional category filter")
 
 
 class FilterObjectsParams(BaseModel):
     """Parameters for filter_objects command."""
 
-    category: Optional[int] = Field(default=None, ge=1, le=7, description="Category filter (1-7)")
+    category: int | None = Field(default=None, ge=1, le=7, description="Category filter (1-7)")
     limit: int = Field(default=20, ge=1, le=100, description="Max results")
     offset: int = Field(default=0, ge=0, description="Pagination offset")
 
@@ -54,7 +55,7 @@ class ShowOrbitParams(BaseModel):
     """Parameters for show_orbit command."""
 
     object_id: int = Field(..., gt=0, description="Object identifier")
-    duration_minutes: Optional[int] = Field(default=90, ge=1, le=1440, description="Orbit duration in minutes")
+    duration_minutes: int | None = Field(default=90, ge=1, le=1440, description="Orbit duration in minutes")
 
 
 class FollowObjectParams(BaseModel):
@@ -90,7 +91,7 @@ class ApplicationCommand(BaseModel):
 
     command: CommandName
     params: CommandParams
-    request_id: Optional[str] = Field(default=None, description="Optional request tracking ID")
+    request_id: str | None = Field(default=None, description="Optional request tracking ID")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
     @validator("params", pre=True)
@@ -123,7 +124,7 @@ class ApplicationCommand(BaseModel):
 class CommandValidationError(Exception):
     """Raised when command validation fails."""
 
-    def __init__(self, message: str, command: Optional[str] = None, errors: Optional[List[str]] = None):
+    def __init__(self, message: str, command: str | None = None, errors: list[str] | None = None):
         self.command = command
         self.errors = errors or []
         super().__init__(message)
@@ -132,7 +133,7 @@ class CommandValidationError(Exception):
 class CommandExecutionError(Exception):
     """Raised when command execution fails."""
 
-    def __init__(self, message: str, command: Optional[str] = None):
+    def __init__(self, message: str, command: str | None = None):
         self.command = command
         super().__init__(message)
 
@@ -186,12 +187,9 @@ class CommandValidator:
         content = ai_content.strip()
 
         # Handle markdown code blocks
-        if content.startswith("```json"):
-            content = content[7:]
-        if content.startswith("```"):
-            content = content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
+        content = content.removeprefix("```json")
+        content = content.removeprefix("```")
+        content = content.removesuffix("```")
         content = content.strip()
 
         # Parse JSON
@@ -202,7 +200,7 @@ class CommandValidator:
 
         return self.validate_dict(data)
 
-    def validate_dict(self, data: Dict[str, Any]) -> ApplicationCommand:
+    def validate_dict(self, data: dict[str, Any]) -> ApplicationCommand:
         """Validate a dict into an ApplicationCommand.
 
         Args:
@@ -266,13 +264,13 @@ class CommandExecutor:
     def __init__(self, api_client=None):
         """Initialize with optional API client for backend calls."""
         self.api_client = api_client
-        self._callbacks: Dict[CommandName, callable] = {}
+        self._callbacks: dict[CommandName, callable] = {}
 
     def register_callback(self, command: CommandName, callback: callable) -> None:
         """Register a callback for a command (for frontend integration)."""
         self._callbacks[command] = callback
 
-    def execute(self, command: ApplicationCommand) -> Dict[str, Any]:
+    def execute(self, command: ApplicationCommand) -> dict[str, Any]:
         """Execute a validated command.
 
         Args:
@@ -304,9 +302,9 @@ class CommandExecutor:
             command=command.command.value,
         )
 
-    def _execute_via_api(self, command: ApplicationCommand) -> Dict[str, Any]:
+    def _execute_via_api(self, command: ApplicationCommand) -> dict[str, Any]:
         """Execute command via backend API client."""
-        from backend.client import APIClient, APIError
+        from backend.client import APIError
 
         if not self.api_client:
             raise CommandExecutionError("No API client configured")
@@ -402,13 +400,13 @@ class AICommandBridge:
 
     def __init__(
         self,
-        validator: Optional[CommandValidator] = None,
-        executor: Optional[CommandExecutor] = None,
+        validator: CommandValidator | None = None,
+        executor: CommandExecutor | None = None,
     ):
         self.validator = validator or CommandValidator()
         self.executor = executor or CommandExecutor()
 
-    def process_ai_output(self, ai_content: str) -> Dict[str, Any]:
+    def process_ai_output(self, ai_content: str) -> dict[str, Any]:
         """Process AI output through validation and execution.
 
         Args:
@@ -445,7 +443,7 @@ class AICommandBridge:
                 "command": exc.command,
             }
 
-    def process_ai_dict(self, ai_data: Dict[str, Any]) -> Dict[str, Any]:
+    def process_ai_dict(self, ai_data: dict[str, Any]) -> dict[str, Any]:
         """Process AI output dict through validation and execution."""
         try:
             command = self.validator.validate_dict(ai_data)

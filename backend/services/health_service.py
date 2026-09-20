@@ -6,10 +6,8 @@ Shared between FastAPI routes and CLI commands.
 
 from __future__ import annotations
 
-from typing import Any, Dict
 
-
-def health_service() -> Dict[str, str]:
+def health_service() -> dict[str, str]:
     """Return API health status.
 
     Returns:
