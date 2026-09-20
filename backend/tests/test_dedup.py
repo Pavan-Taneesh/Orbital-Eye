@@ -4,6 +4,7 @@ Verifies norad_id UNIQUE constraint holds and cross-source matching
 doesn't produce duplicate objects.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -15,10 +16,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
 
 def connect():
     return psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="SpaceDB@2026",
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD"),
     )
 
 
