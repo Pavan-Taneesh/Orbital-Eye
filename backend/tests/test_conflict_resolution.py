@@ -4,6 +4,7 @@ Verifies resolved_metadata respects FIELD_PRIORITY ordering and
 upsert behavior (no duplicate object_id+field_name rows).
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -14,10 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
 
 def connect():
     return psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="SpaceDB@2026",
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD"),
     )
 
 

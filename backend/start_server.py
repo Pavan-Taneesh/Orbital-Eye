@@ -21,7 +21,7 @@ try:
     req = urllib.request.Request("http://127.0.0.1:8000/openapi.json")
     with urllib.request.urlopen(req, timeout=5) as response:
         schema = json.loads(response.read().decode())
-    print(f"\nOpenAPI schema fetched successfully!")
+    print("\nOpenAPI schema fetched successfully!")
     print(f"Number of paths: {len(schema.get('paths', {}))}")
     
     # Check for key endpoints
@@ -46,11 +46,12 @@ try:
         json.dump(schema, f, indent=2)
     print("\nSchema saved to /tmp/openapi_schema.json")
     
-except Exception as e:
+except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
     print(f"\nError fetching OpenAPI schema: {e}")
 
 # Kill the server after 15 seconds
 import subprocess
+
 proc.terminate()
 proc.wait()
 print(f"\nServer stopped (PID {proc.pid})")

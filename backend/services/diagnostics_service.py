@@ -9,13 +9,14 @@ Do NOT duplicate diagnostic calculations — delegate to Person 2 foundation.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
-from logic import diagnostics  # type: ignore
 from fastapi import HTTPException
 
+from logic import diagnostics
 
-def diagnostics_service(object_id: int) -> Dict[str, Any]:
+
+def diagnostics_service(object_id: int) -> dict[str, Any]:
     """Get diagnostics for an object.
 
     Application-level orchestration for GET /api/v1/objects/{object_id}/diagnostics.
@@ -39,4 +40,4 @@ def diagnostics_service(object_id: int) -> Dict[str, Any]:
     diag = diagnostics.get_diagnostics(object_id)
     if diag["raw_latest_row"] is None:
         raise HTTPException(status_code=404, detail="no orbital data for this object")
-    return diag
+    return dict(diag)

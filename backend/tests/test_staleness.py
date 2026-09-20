@@ -4,23 +4,24 @@ Verifies latest_orbital_elements view + state_model.py status logic
 correctly classify fresh vs stale data.
 """
 
+import os
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import psycopg2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
 
-from state_model import get_state, STALE_THRESHOLD_HOURS
+from state_model import STALE_THRESHOLD_HOURS, get_state
 
 
 def connect():
     return psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="SpaceDB@2026",
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD"),
     )
 
 

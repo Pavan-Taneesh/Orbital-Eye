@@ -6,6 +6,4 @@ Reuses existing Person 2 logic (state_model, diagnostics) and Pydantic schemas.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
 __all__ = []

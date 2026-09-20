@@ -23,11 +23,15 @@ Typical usage:
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, List, Type, Tuple
+from typing import Any
 
-from .response import AIResponse
+from .exceptions import (
+    MissingCredentialsError,
+    ProviderFailureError,
+    ProviderTimeoutError,
+)
 from .provider import ProviderInterface
-from .exceptions import MissingCredentialsError, ProviderFailureError, ProviderTimeoutError
+from .response import AIResponse
 
 
 class AIService:
@@ -72,7 +76,7 @@ class AIService:
         if prompt is None:
             raise ValueError("Prompt must not be None")
         if not isinstance(prompt, str):
-            raise ValueError(f"Prompt must be a string, got {type(prompt)}")
+            raise TypeError(f"Prompt must be a string, got {type(prompt)}")
         if prompt.strip() == "":
             raise ValueError("Prompt must not be empty or whitespace-only")
         if len(prompt) > 100_000:
@@ -87,10 +91,10 @@ class AIService:
     def generate(
         self,
         prompt: str,
-        system: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        timeout: Optional[float] = None,
+        system: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> AIResponse:
         """Generate a response to the given prompt.
 
@@ -135,7 +139,7 @@ class AIService:
             raise ProviderTimeoutError(
                 provider_name=self.provider.name, timeout=effective_timeout
             ) from exc
-        except MissingCredentialsError as exc:
+        except MissingCredentialsError:
             raise  # re-raise as-is
         except Exception as exc:
             # Wrap any unexpected provider error
@@ -173,7 +177,7 @@ class AIService:
     # Convenience methods
     # -----------------------------------------------------------------
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """Check provider health.
 
         Returns:
@@ -181,7 +185,7 @@ class AIService:
         """
         return self.provider.health()
 
-    def get_provider_config(self) -> Dict[str, Any]:
+    def get_provider_config(self) -> dict[str, Any]:
         """Get provider configuration (non-sensitive info).
 
         Returns:
@@ -189,7 +193,7 @@ class AIService:
         """
         return self.provider.get_config()
 
-    def list_recent(self, n: int = 5) -> List[AIResponse]:
+    def list_recent(self, n: int = 5) -> list[AIResponse]:
         """Return n recent responses (no-op for fake provider).
 
         Args:
@@ -231,6 +235,7 @@ def make_service(
     from .fake_provider import FakeProvider
     from .gemini_provider import GeminiProvider
 
+    provider: ProviderInterface
     if provider_name == "fake":
         provider = FakeProvider(**provider_kwargs)
     elif provider_name == "gemini":

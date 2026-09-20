@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import pytest
-
+from backend.ai import FakeProvider, make_service
 from backend.ai_exploration import (
+    SYSTEM_PROMPT,
     AIExplorationService,
     ExplorationContext,
-    ExplorationResult,
-    SYSTEM_PROMPT,
 )
-from backend.ai import make_service, FakeProvider
 from backend.command_system import AICommandBridge, CommandName
 
 
@@ -93,7 +91,6 @@ class TestAIExplorationService:
     def test_explore_missing_credentials(self):
         """Test explore with missing credentials."""
         from backend.ai import GeminiProvider
-        from backend.ai.exceptions import MissingCredentialsError
 
         # Create service with gemini provider but no API key
         provider = GeminiProvider(api_key=None)

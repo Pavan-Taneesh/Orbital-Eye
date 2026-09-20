@@ -4,6 +4,7 @@ Verifies norad_id UNIQUE constraint holds and cross-source matching
 doesn't produce duplicate objects.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -15,10 +16,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
 
 def connect():
     return psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="SpaceDB@2026",
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD"),
     )
 
 
@@ -62,7 +63,11 @@ def test_unique_constraint_rejects_duplicate_insert():
 
 
 def test_object_count_matches_expected_minimum():
-    """Sanity check: total object count should be at least the sum of known CelesTrak category counts."""
+    """Sanity check: total object count should be at least the sum of known CelesTrak category counts.
+
+    This is an integration test that requires the full CelesTrak ingestion
+    to have run and populated the database with the expected dataset.
+    """
     conn = connect()
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM objects;")
@@ -72,3 +77,6 @@ def test_object_count_matches_expected_minimum():
 
     # From CelesTrak confirmed counts: 22+32+568+52+47+6848+2646 = 10215 minimum
     assert count >= 10215, f"Object count lower than expected minimum: {count}"
+
+
+test_object_count_matches_expected_minimum = pytest.mark.integration(test_object_count_matches_expected_minimum)

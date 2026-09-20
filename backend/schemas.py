@@ -6,11 +6,7 @@ instead of raw dicts. Database-layer models remain as-is.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
-
 from pydantic import BaseModel, Field, validator
-
 
 # ---------------------------------------------------------------------------
 # Request / query models
@@ -23,7 +19,6 @@ class HealthCheckRequest(BaseModel):
     No fields — health check is always public, no parameters.
     """
 
-    pass
 
 
 class SearchParams(BaseModel):
@@ -36,7 +31,7 @@ class SearchParams(BaseModel):
     """
 
     q: str = Field(default="", description="Case-insensitive match against object name")
-    category: Optional[int] = Field(default=None, ge=1, le=7, description="Filter by category_id (1-7)")
+    category: int | None = Field(default=None, ge=1, le=7, description="Filter by category_id (1-7)")
     limit: int = Field(default=20, ge=1, le=100, description="Max 100 results per page")
     offset: int = Field(default=0, ge=0, description="Pagination offset")
 
@@ -53,7 +48,7 @@ class ListParams(BaseModel):
     offset: pagination offset (default: 0)
     """
 
-    category: Optional[int] = Field(default=None, ge=1, le=7, description="Filter by category_id (1-7)")
+    category: int | None = Field(default=None, ge=1, le=7, description="Filter by category_id (1-7)")
     limit: int = Field(default=20, ge=1, le=100, description="Max 100 results per page")
     offset: int = Field(default=0, ge=0, description="Pagination offset")
 
@@ -73,7 +68,6 @@ class MediaQuery(BaseModel):
     object_id is a path parameter, validated via ObjectIdPath.
     """
 
-    pass
 
 
 # ---------------------------------------------------------------------------
@@ -129,15 +123,15 @@ class ObjectDetails(BaseModel):
 
     object_id: int = Field(..., description="Primary key")
     name: str = Field(..., description="Common name")
-    category_id: Optional[int] = Field(
+    category_id: int | None = Field(
         default=None,
         description="Category identifier (1-7), may be null if unresolved",
     )
-    category: Optional[str] = Field(
+    category: str | None = Field(
         default=None,
         description="Category name from categories table (backward compat)",
     )
-    norad_id: Optional[int] = Field(
+    norad_id: int | None = Field(
         default=None, description="NORAD catalog number, may be null"
     )
     metadata: dict[str, str] = Field(
@@ -161,7 +155,7 @@ class MediaResponseItem(BaseModel):
         default="image",
         description="MIME type or category (image, video, link, etc.)",
     )
-    source_id: Optional[int] = Field(
+    source_id: int | None = Field(
         default=None,
         description="Source identifier referencing the sources table, may be null",
     )
@@ -286,7 +280,7 @@ def build_object_details_from_row(
     object_id: int,
     name: str,
     category_id: int,
-    category: Optional[str],
+    category: str | None,
     norad_id: int | None,
     resolved_metadata: dict[str, str],
     media_rows: list[dict],

@@ -1,13 +1,15 @@
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 import os
 import time
-import requests
+
 import psycopg2
+import requests
 
 SOURCE_ID = 4  # ESA DISCOS
 API_BASE = "https://discosweb.esoc.esa.int/api/objects"
@@ -53,7 +55,7 @@ while True:
         "page[size]": PAGE_SIZE,
     }
 
-    response = None
+    response: requests.Response | None = None
     for attempt in range(1, MAX_RETRIES + 1):
         response = requests.get(API_BASE, headers=HEADERS, params=params, timeout=30)
         if response.status_code == 200:
@@ -64,8 +66,10 @@ while True:
         else:
             break  # non-transient error, don't retry
 
-    if response.status_code != 200:
-        print(f"Page {page_number}: fetch failed after retries, status {response.status_code}, body: {response.text[:200]}")
+    if response is None or response.status_code != 200:
+        status = response.status_code if response is not None else "no response"
+        body = response.text[:200] if response is not None else "no response"
+        print(f"Page {page_number}: fetch failed after retries, status {status}, body: {body}")
         print(f"To resume later: set DISCOS_START_PAGE={page_number}")
         break
 

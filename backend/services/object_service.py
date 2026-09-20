@@ -11,12 +11,12 @@ where appropriate.
 
 from __future__ import annotations
 
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import psycopg2
 from fastapi import HTTPException
 
+from logic.state_model import connect
+from schemas import build_object_details_from_row
 
 
 def _validate_object_id(object_id: int) -> None:
@@ -30,10 +30,10 @@ def _validate_object_id(object_id: int) -> None:
 
 def search_objects(
     q: str = "",
-    category: Optional[int] = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search objects with optional query and category filter.
 
     Application-level orchestration for GET /api/v1/objects/search.
@@ -52,7 +52,7 @@ def search_objects(
     offset = max(0, offset)
 
     base_where = "WHERE o.name ILIKE %s"
-    params = [f"%{q}%"]
+    params: list[Any] = [f"%{q}%"]
     if category is not None:
         base_where += " AND o.category_id = %s"
         params.append(category)
@@ -91,10 +91,10 @@ def search_objects(
 
 
 def list_objects(
-    category: Optional[int] = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """List objects with optional category filter.
 
     Application-level orchestration for GET /api/v1/objects.
@@ -112,7 +112,7 @@ def list_objects(
     offset = max(0, offset)
 
     base_where = ""
-    params: List[Any] = []
+    params: list[Any] = []
     if category is not None:
         base_where = "WHERE category_id = %s"
         params.append(category)
@@ -149,7 +149,7 @@ def list_objects(
     }
 
 
-def get_object(object_id: int) -> Dict[str, Any]:
+def get_object(object_id: int) -> dict[str, Any]:
     """Get a single object's full details.
 
     Application-level orchestration for GET /api/v1/objects/{object_id}.
@@ -173,7 +173,7 @@ def get_object(object_id: int) -> Dict[str, Any]:
 
     cur.execute(
         """
-        SELECT o.object_id, o.name, c.name AS category, o.norad_id
+        SELECT o.object_id, o.name, o.category_id, c.name AS category, o.norad_id
         FROM objects o
         LEFT JOIN categories c ON o.category_id = c.category_id
         WHERE o.object_id = %s;
@@ -186,7 +186,7 @@ def get_object(object_id: int) -> Dict[str, Any]:
         conn.close()
         raise HTTPException(status_code=404, detail="object not found")
 
-    obj_id, name, category, norad_id = row
+    obj_id, name, category_id, category, norad_id = row
 
     cur.execute(
         "SELECT field_name, field_value FROM resolved_metadata WHERE object_id = %s;",
@@ -205,7 +205,7 @@ def get_object(object_id: int) -> Dict[str, Any]:
     od = build_object_details_from_row(
         object_id=obj_id,
         name=name,
-        category_id=category_id if isinstance(category, int) else None,  # type: ignore
+        category_id=category_id,
         category=category,
         norad_id=norad_id,
         resolved_metadata=metadata,
@@ -215,7 +215,7 @@ def get_object(object_id: int) -> Dict[str, Any]:
     return od.model_dump()
 
 
-def get_object_media(object_id: int) -> Dict[str, Any]:
+def get_object_media(object_id: int) -> dict[str, Any]:
     """Get media attachments for a single object.
 
     Application-level orchestration for GET /api/v1/objects/{object_id}/media.

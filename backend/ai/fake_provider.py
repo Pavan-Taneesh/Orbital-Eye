@@ -13,11 +13,14 @@ via __init__ kwargs. Class-level defaults apply unless overridden per-instance.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, List
+from typing import Any
 
-from .response import AIResponse
+from .exceptions import (
+    ProviderFailureError,
+    ProviderTimeoutError,
+)
 from .provider import ProviderInterface
-from .exceptions import MissingCredentialsError, ProviderFailureError, ProviderTimeoutError
+from .response import AIResponse
 
 
 class FakeProvider(ProviderInterface):
@@ -85,10 +88,10 @@ class FakeProvider(ProviderInterface):
     def generate(
         self,
         prompt: str,
-        system: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        timeout: Optional[float] = None,
+        system: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> AIResponse:
         """Generate a response to the given prompt.
 
@@ -168,7 +171,7 @@ class FakeProvider(ProviderInterface):
             and response.content.strip() != ""
         )
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         """Check provider connectivity and credentials.
 
         Returns:
@@ -181,7 +184,7 @@ class FakeProvider(ProviderInterface):
             "configured": True,
         }
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """Return provider configuration (non-sensitive info only).
 
         Returns:

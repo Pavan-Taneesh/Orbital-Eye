@@ -11,10 +11,12 @@ Commands are validated before execution. AI output is NEVER trusted directly.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field, validator
+from collections.abc import Callable
 from datetime import datetime
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field, validator
 
 
 class CommandName(str, Enum):
@@ -32,13 +34,13 @@ class FindObjectParams(BaseModel):
     """Parameters for find_object command."""
 
     query: str = Field(..., min_length=1, max_length=200, description="Search query")
-    category: Optional[int] = Field(default=None, ge=1, le=7, description="Optional category filter")
+    category: int | None = Field(default=None, ge=1, le=7, description="Optional category filter")
 
 
 class FilterObjectsParams(BaseModel):
     """Parameters for filter_objects command."""
 
-    category: Optional[int] = Field(default=None, ge=1, le=7, description="Category filter (1-7)")
+    category: int | None = Field(default=None, ge=1, le=7, description="Category filter (1-7)")
     limit: int = Field(default=20, ge=1, le=100, description="Max results")
     offset: int = Field(default=0, ge=0, description="Pagination offset")
 
@@ -54,7 +56,7 @@ class ShowOrbitParams(BaseModel):
     """Parameters for show_orbit command."""
 
     object_id: int = Field(..., gt=0, description="Object identifier")
-    duration_minutes: Optional[int] = Field(default=90, ge=1, le=1440, description="Orbit duration in minutes")
+    duration_minutes: int | None = Field(default=90, ge=1, le=1440, description="Orbit duration in minutes")
 
 
 class FollowObjectParams(BaseModel):
@@ -71,14 +73,14 @@ class OpenInformationPanelParams(BaseModel):
 
 
 # Union of all parameter types
-CommandParams = Union[
-    FindObjectParams,
-    FilterObjectsParams,
-    FocusObjectParams,
-    ShowOrbitParams,
-    FollowObjectParams,
-    OpenInformationPanelParams,
-]
+CommandParams = (
+    FindObjectParams
+    | FilterObjectsParams
+    | FocusObjectParams
+    | ShowOrbitParams
+    | FollowObjectParams
+    | OpenInformationPanelParams
+)
 
 
 class ApplicationCommand(BaseModel):
@@ -90,7 +92,7 @@ class ApplicationCommand(BaseModel):
 
     command: CommandName
     params: CommandParams
-    request_id: Optional[str] = Field(default=None, description="Optional request tracking ID")
+    request_id: str | None = Field(default=None, description="Optional request tracking ID")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
     @validator("params", pre=True)
@@ -116,14 +118,14 @@ class ApplicationCommand(BaseModel):
         if isinstance(v, dict):
             return expected_type(**v)
         if not isinstance(v, expected_type):
-            raise ValueError(f"Params must be {expected_type.__name__} for command {command}")
+            raise TypeError(f"Params must be {expected_type.__name__} for command {command}")
         return v
 
 
 class CommandValidationError(Exception):
     """Raised when command validation fails."""
 
-    def __init__(self, message: str, command: Optional[str] = None, errors: Optional[List[str]] = None):
+    def __init__(self, message: str, command: str | None = None, errors: list[str] | None = None):
         self.command = command
         self.errors = errors or []
         super().__init__(message)
@@ -132,7 +134,7 @@ class CommandValidationError(Exception):
 class CommandExecutionError(Exception):
     """Raised when command execution fails."""
 
-    def __init__(self, message: str, command: Optional[str] = None):
+    def __init__(self, message: str, command: str | None = None):
         self.command = command
         super().__init__(message)
 
@@ -149,14 +151,14 @@ class CommandValidator:
     """
 
     # Allowlisted commands that AI can invoke
-    ALLOWED_COMMANDS = {
+    ALLOWED_COMMANDS: frozenset[CommandName] = frozenset({
         CommandName.FIND_OBJECT,
         CommandName.FILTER_OBJECTS,
         CommandName.FOCUS_OBJECT,
         CommandName.SHOW_ORBIT,
         CommandName.FOLLOW_OBJECT,
         CommandName.OPEN_INFORMATION_PANEL,
-    }
+    })
 
     def __init__(self, strict: bool = True):
         self.strict = strict
@@ -186,12 +188,9 @@ class CommandValidator:
         content = ai_content.strip()
 
         # Handle markdown code blocks
-        if content.startswith("```json"):
-            content = content[7:]
-        if content.startswith("```"):
-            content = content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
+        content = content.removeprefix("```json")
+        content = content.removeprefix("```")
+        content = content.removesuffix("```")
         content = content.strip()
 
         # Parse JSON
@@ -202,7 +201,7 @@ class CommandValidator:
 
         return self.validate_dict(data)
 
-    def validate_dict(self, data: Dict[str, Any]) -> ApplicationCommand:
+    def validate_dict(self, data: dict[str, Any]) -> ApplicationCommand:
         """Validate a dict into an ApplicationCommand.
 
         Args:
@@ -266,13 +265,13 @@ class CommandExecutor:
     def __init__(self, api_client=None):
         """Initialize with optional API client for backend calls."""
         self.api_client = api_client
-        self._callbacks: Dict[CommandName, callable] = {}
+        self._callbacks: dict[CommandName, Callable[[CommandParams], dict[str, Any]]] = {}
 
-    def register_callback(self, command: CommandName, callback: callable) -> None:
+    def register_callback(self, command: CommandName, callback: Callable[[CommandParams], dict[str, Any]]) -> None:
         """Register a callback for a command (for frontend integration)."""
         self._callbacks[command] = callback
 
-    def execute(self, command: ApplicationCommand) -> Dict[str, Any]:
+    def execute(self, command: ApplicationCommand) -> dict[str, Any]:
         """Execute a validated command.
 
         Args:
@@ -304,73 +303,81 @@ class CommandExecutor:
             command=command.command.value,
         )
 
-    def _execute_via_api(self, command: ApplicationCommand) -> Dict[str, Any]:
+    def _execute_via_api(self, command: ApplicationCommand) -> dict[str, Any]:
         """Execute command via backend API client."""
-        from backend.client import APIClient, APIError
+        from backend.client import APIError
 
         if not self.api_client:
             raise CommandExecutionError("No API client configured")
 
+        params = command.params
+
         try:
             if command.command == CommandName.FIND_OBJECT:
-                params = command.params
-                result = self.api_client.search(q=params.query, category=params.category)
-                return {"success": True, "data": result.model_dump()}
+                if isinstance(params, FindObjectParams):
+                    result = self.api_client.search(q=params.query, category=params.category)
+                    return {"success": True, "data": result.model_dump()}
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.FILTER_OBJECTS:
-                params = command.params
-                result = self.api_client.list(category=params.category, limit=params.limit, offset=params.offset)
-                return {"success": True, "data": result.model_dump()}
+                if isinstance(params, FilterObjectsParams):
+                    result = self.api_client.list(category=params.category, limit=params.limit, offset=params.offset)
+                    return {"success": True, "data": result.model_dump()}
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.FOCUS_OBJECT:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                state = self.api_client.state(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "state": state.model_dump(),
-                    },
-                }
+                if isinstance(params, FocusObjectParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    state = self.api_client.state(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "state": state.model_dump(),
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.SHOW_ORBIT:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                state = self.api_client.state(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "state": state.model_dump(),
-                        "orbit_duration_minutes": params.duration_minutes,
-                    },
-                }
+                if isinstance(params, ShowOrbitParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    state = self.api_client.state(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "state": state.model_dump(),
+                            "orbit_duration_minutes": params.duration_minutes,
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.FOLLOW_OBJECT:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                state = self.api_client.state(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "state": state.model_dump(),
-                        "follow_enabled": params.enable,
-                    },
-                }
+                if isinstance(params, FollowObjectParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    state = self.api_client.state(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "state": state.model_dump(),
+                            "follow_enabled": params.enable,
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.OPEN_INFORMATION_PANEL:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                media = self.api_client.media(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "media": media.model_dump(),
-                    },
-                }
+                if isinstance(params, OpenInformationPanelParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    media = self.api_client.media(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "media": media.model_dump(),
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
         except APIError as exc:
             raise CommandExecutionError(
@@ -402,13 +409,13 @@ class AICommandBridge:
 
     def __init__(
         self,
-        validator: Optional[CommandValidator] = None,
-        executor: Optional[CommandExecutor] = None,
+        validator: CommandValidator | None = None,
+        executor: CommandExecutor | None = None,
     ):
         self.validator = validator or CommandValidator()
         self.executor = executor or CommandExecutor()
 
-    def process_ai_output(self, ai_content: str) -> Dict[str, Any]:
+    def process_ai_output(self, ai_content: str) -> dict[str, Any]:
         """Process AI output through validation and execution.
 
         Args:
@@ -445,7 +452,7 @@ class AICommandBridge:
                 "command": exc.command,
             }
 
-    def process_ai_dict(self, ai_data: Dict[str, Any]) -> Dict[str, Any]:
+    def process_ai_dict(self, ai_data: dict[str, Any]) -> dict[str, Any]:
         """Process AI output dict through validation and execution."""
         try:
             command = self.validator.validate_dict(ai_data)

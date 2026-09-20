@@ -1,13 +1,15 @@
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 import os
 import time
-import requests
+
 import psycopg2
+import requests
 
 # --- Config ---
 SOURCE_ID = 2  # Space-Track

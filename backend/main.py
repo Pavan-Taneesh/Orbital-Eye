@@ -15,15 +15,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "logic"))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from schemas import (
-    HealthResponse,
-    PaginatedResponse,
-    ObjectDetails,
-    StateResponse,
     DiagnosticsResponse,
+    HealthResponse,
     MediaResponse,
+    ObjectDetails,
+    PaginatedResponse,
+    StateResponse,
 )
+from services.diagnostics_service import diagnostics_service as diagnostics_service_svc
+from services.health_service import health_service as health_service_svc
+from services.object_service import (
+    get_object as get_object_svc,
+)
+from services.object_service import (
+    get_object_media as get_object_media_svc,
+)
+from services.object_service import (
+    list_objects as list_objects_svc,
+)
+from services.object_service import (
+    search_objects as search_objects_svc,
+)
+from services.state_service import state_service as state_service_svc
 
 app = FastAPI(title="Space-website API", version="0.1.0")
 
@@ -37,8 +53,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from services import health_service, state_service, diagnostics_service
 
+class AIExploreRequest(BaseModel):
+    request: str
+
+
+class AIExploreResponse(BaseModel):
+    success: bool
+    command: str | None = None
+    result: dict | None = None
+    ai_response: str | None = None
+    error: str | None = None
+    error_type: str | None = None
+    latency_ms: float = 0.0
+    tokens_used: dict = {}
 
 # ---------------------------------------------------------------------------
 # Health
@@ -51,7 +79,7 @@ def health_check():
     Returns:
         HealthResponse with status "ok"
     """
-    return health_service()
+    return health_service_svc()
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +89,7 @@ def health_check():
 @app.get("/api/v1/objects/search", response_model=PaginatedResponse)
 def search_objects(
     q: str = "",
-    category: int = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
 ):
@@ -79,9 +107,9 @@ def search_objects(
     Returns:
         PaginatedResponse with ObjectSummary results
     """
-    from services import search_objects as _search
+    data = search_objects_svc
 
-    data = _search(
+    return search_objects_svc(
         q=q,
         category=category,
         limit=limit,
@@ -92,7 +120,7 @@ def search_objects(
 
 @app.get("/api/v1/objects", response_model=PaginatedResponse)
 def list_objects(
-    category: int = None,
+    category: int | None = None,
     limit: int = 20,
     offset: int = 0,
 ):
@@ -109,9 +137,9 @@ def list_objects(
     Returns:
         PaginatedResponse with ObjectSummary results
     """
-    from services import list_objects as _list
+    data = list_objects_svc
 
-    data = _list(
+    return list_objects_svc(
         category=category,
         limit=limit,
         offset=offset,
@@ -140,10 +168,10 @@ def get_object(object_id: int):
         HTTPException 400: If object_id is not positive
         HTTPException 404: If object not found
     """
-    from services import get_object as _get_obj
+    data = get_object_svc
 
     try:
-        data = _get_obj(object_id=object_id)
+        return get_object_svc(object_id=object_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -176,8 +204,7 @@ def get_object_state(object_id: int):
     Raises:
         HTTPException 404: If no orbital data for this object
     """
-    data = state_service(object_id=object_id)
-    return data
+    return state_service_svc(object_id=object_id)
 
 
 # ---------------------------------------------------------------------------
@@ -203,8 +230,7 @@ def get_object_diagnostics(object_id: int):
     Raises:
         HTTPException 404: If no orbital data for this object
     """
-    data = diagnostics_service(object_id=object_id)
-    return data
+    return diagnostics_service_svc(object_id=object_id)
 
 
 # ---------------------------------------------------------------------------
@@ -230,10 +256,10 @@ def get_object_media(object_id: int):
     Raises:
         HTTPException 400: If object_id is not positive
     """
-    from services import get_object_media as _get_media
+    data = get_object_media_svc
 
     try:
-        data = _get_media(object_id=object_id)
+        return get_object_media_svc(object_id=object_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -241,3 +267,49 @@ def get_object_media(object_id: int):
         ) from exc
 
     return data
+
+
+# ---------------------------------------------------------------------------
+# AI Exploration
+# ---------------------------------------------------------------------------
+
+@app.post("/api/v1/ai/explore", response_model=AIExploreResponse)
+def ai_explore(req: AIExploreRequest):
+    """POST /api/v1/ai/explore
+
+    Accepts a natural language request and processes it through the AI
+    exploration pipeline (AI provider → validation → command execution).
+
+    Args:
+        req: AIExploreRequest with natural language "request" field
+
+    Returns:
+        AIExploreResponse with command execution result
+    """
+    # Use fake provider by default; can be overridden via env var
+    import os
+
+    from ai_exploration import AIExplorationService, make_service
+    from client import APIClient
+    from command_system import AICommandBridge, CommandExecutor
+    provider_name = os.getenv("AI_PROVIDER", "fake")
+    ai_service = make_service(provider_name)
+
+    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    api_client = APIClient(base_url=base_url)
+    executor = CommandExecutor(api_client=api_client)
+    bridge = AICommandBridge(executor=executor)
+    service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
+
+    result = service.explore(req.request)
+
+    return AIExploreResponse(
+        success=result.success,
+        command=result.command,
+        result=result.result,
+        ai_response=result.ai_response,
+        error=result.error,
+        error_type=result.error_type,
+        latency_ms=result.latency_ms,
+        tokens_used=result.tokens_used,
+    )

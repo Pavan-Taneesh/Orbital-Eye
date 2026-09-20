@@ -8,12 +8,11 @@ Usage (standalone test):
 """
 
 import os
+import sys
 from datetime import datetime, timezone
 
 import psycopg2
-
-from propagate import get_latest_elements, build_satellite, propagate
-
+from propagate import build_satellite, get_latest_elements, propagate
 
 SOURCE_NAMES = {
     1: "CelesTrak",
@@ -30,7 +29,7 @@ def connect():
         host=os.getenv("DB_HOST", "localhost"),
         dbname=os.getenv("DB_NAME", "project_db"),
         user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "SpaceDB@2026"),
+        password=os.getenv("DB_PASSWORD"),
     )
 
 
@@ -56,7 +55,7 @@ def get_source_and_freshness(object_id: int):
     return row
 
 
-def get_state(object_id: int, when: datetime = None):
+def get_state(object_id: int, when: datetime | None = None):
     """
     Build the Contract C state dict for one object.
     `when` defaults to now (UTC) if not given.

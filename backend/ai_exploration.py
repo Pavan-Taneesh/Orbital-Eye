@@ -8,22 +8,20 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
+from typing import Any
 
-from backend.ai import AIService, make_service, AIResponse
-from backend.ai.exceptions import MissingCredentialsError, ProviderFailureError, ProviderTimeoutError
-from backend.command_system import (
-    CommandValidator,
-    CommandExecutor,
-    AICommandBridge,
-    ApplicationCommand,
-    CommandName,
-    CommandValidationError,
-    CommandExecutionError,
+from backend.ai import AIService, make_service
+from backend.ai.exceptions import (
+    MissingCredentialsError,
+    ProviderFailureError,
+    ProviderTimeoutError,
 )
-from backend.application_state import get_app_state, AIStatus, AIState
-
+from backend.application_state import get_app_state
+from backend.command_system import (
+    AICommandBridge,
+    CommandName,
+)
 
 # System prompt for Gemini to generate structured commands
 SYSTEM_PROMPT = """You are an AI assistant for a satellite tracking application. Convert user requests into structured JSON commands.
@@ -62,15 +60,15 @@ Rules:
 class ExplorationContext:
     """Minimal context sent to AI for exploration."""
 
-    selected_object_id: Optional[int] = None
-    hovered_object_id: Optional[int] = None
-    selected_categories: List[int] = field(default_factory=list)
+    selected_object_id: int | None = None
+    hovered_object_id: int | None = None
+    selected_categories: list[int] = field(default_factory=list)
     search_query: str = ""
-    available_commands: List[str] = field(default_factory=lambda: [c.value for c in CommandName])
-    diagnostics: Optional[Dict[str, Any]] = None
+    available_commands: list[str] = field(default_factory=lambda: [c.value for c in CommandName])
+    diagnostics: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        base = {
+    def to_dict(self) -> dict[str, Any]:
+        base: dict[str, Any] = {
             "selected_object_id": self.selected_object_id,
             "hovered_object_id": self.hovered_object_id,
             "selected_categories": self.selected_categories,
@@ -87,13 +85,13 @@ class ExplorationResult:
     """Result of an AI exploration request."""
 
     success: bool
-    command: Optional[str] = None
-    result: Optional[Dict[str, Any]] = None
-    ai_response: Optional[str] = None
-    error: Optional[str] = None
-    error_type: Optional[str] = None  # validation_failed, execution_failed, provider_error, etc.
+    command: str | None = None
+    result: dict[str, Any] | None = None
+    ai_response: str | None = None
+    error: str | None = None
+    error_type: str | None = None  # validation_failed, execution_failed, provider_error, etc.
     latency_ms: float = 0.0
-    tokens_used: Dict[str, int] = field(default_factory=dict)
+    tokens_used: dict[str, int] = field(default_factory=dict)
 
 
 class AIExplorationService:
@@ -109,8 +107,8 @@ class AIExplorationService:
 
     def __init__(
         self,
-        ai_service: Optional[AIService] = None,
-        command_bridge: Optional[AICommandBridge] = None,
+        ai_service: AIService | None = None,
+        command_bridge: AICommandBridge | None = None,
         max_context_chars: int = 2000,
         enable_usage_tracking: bool = True,
     ):
@@ -124,12 +122,12 @@ class AIExplorationService:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self.total_errors = 0
-        self.errors_by_type: Dict[str, int] = {}
+        self.errors_by_type: dict[str, int] = {}
 
     def _build_context(self) -> ExplorationContext:
         """Build minimal context from application state."""
         app_state = get_app_state()
-        diagnostics_data: Optional[Dict[str, Any]] = None
+        diagnostics_data: dict[str, Any] | None = None
         if app_state.visual.selected_object_id is not None:
             # Include selected object as diagnostics context without API call
             # (full diagnostics fetched on-demand via client when needed)
@@ -240,7 +238,7 @@ class AIExplorationService:
                     tokens_used=ai_response.usage or {},
                 )
 
-        except MissingCredentialsError as exc:
+        except MissingCredentialsError:
             self.total_errors += 1
             self.errors_by_type["missing_credentials"] = self.errors_by_type.get("missing_credentials", 0) + 1
             latency_ms = (time.time() - start_time) * 1000
@@ -276,7 +274,7 @@ class AIExplorationService:
                 latency_ms=latency_ms,
             )
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - catch-all for unexpected errors
             self.total_errors += 1
             self.errors_by_type["unexpected"] = self.errors_by_type.get("unexpected", 0) + 1
             latency_ms = (time.time() - start_time) * 1000
@@ -288,7 +286,7 @@ class AIExplorationService:
                 latency_ms=latency_ms,
             )
 
-    def get_usage_stats(self) -> Dict[str, Any]:
+    def get_usage_stats(self) -> dict[str, Any]:
         """Get AI usage statistics."""
         return {
             "total_requests": self.total_requests,

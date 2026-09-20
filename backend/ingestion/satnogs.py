@@ -1,12 +1,14 @@
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path, override=True)
 
 import os
-import requests
+
 import psycopg2
+import requests
 
 SOURCE_ID = 3  # SatNOGS
 API_URL = "https://db.satnogs.org/api/satellites/?format=json"
@@ -26,7 +28,7 @@ print(f"{len(norad_to_object)} objects in DB to match against SatNOGS")
 
 # --- Fetch SatNOGS satellites, handle pagination (DRF-style) or plain list ---
 all_records = []
-url = API_URL
+url: str | None = API_URL
 
 while url:
     response = requests.get(url, timeout=30)

@@ -12,7 +12,7 @@ Typical usage:
 from __future__ import annotations
 
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def _setup_paths():
@@ -31,7 +31,7 @@ def _setup_paths():
 # Command: state
 # ---------------------------------------------------------------------------
 
-def state_command(object_id: int, when: Optional[Any] = None) -> Dict[str, Any]:
+def state_command(object_id: int, when: Any | None = None) -> dict[str, Any]:
     """Get orbital state for an object as a command-side operation.
 
     Wraps backend.services.state_service into a command-style interface
@@ -73,7 +73,7 @@ def state_command(object_id: int, when: Optional[Any] = None) -> Dict[str, Any]:
 # Command: diagnostics
 # ---------------------------------------------------------------------------
 
-def diagnose_command(object_id: int) -> Dict[str, Any]:
+def diagnose_command(object_id: int) -> dict[str, Any]:
     """Get diagnostics for an object as a command-side operation.
 
     Wraps backend.services.diagnostics_service into a command-style interface
@@ -94,7 +94,9 @@ def diagnose_command(object_id: int) -> Dict[str, Any]:
     if not isinstance(object_id, int) or object_id < 1:
         raise ValueError(f"object_id must be a positive integer, got {object_id}")
 
-    from backend.services.diagnostics_service import diagnostics_service as _diag_service
+    from backend.services.diagnostics_service import (
+        diagnostics_service as _diag_service,
+    )
 
     diag = _diag_service(object_id=object_id)
     return {
@@ -111,7 +113,7 @@ def diagnose_command(object_id: int) -> Dict[str, Any]:
 # Command: health
 # ---------------------------------------------------------------------------
 
-def health_command() -> Dict[str, str]:
+def health_command() -> dict[str, str]:
     """Return API health status as a command-side operation.
 
     Returns:
@@ -121,14 +123,15 @@ def health_command() -> Dict[str, str]:
 
     from backend.services.health_service import health_service as _health_service
 
-    return _health_service()
+    result = _health_service()
+    return {"status": str(result.get("status", "unknown"))}
 
 
 # ---------------------------------------------------------------------------
 # Convenience: orchestration integration
 # ---------------------------------------------------------------------------
 
-def ingest_run() -> Dict[str, Any]:
+def ingest_run() -> dict[str, Any]:
     """Invoke the existing ingestion orchestration.
 
     Runs the Person 2 ingestion scripts through the orchestration boundary.
@@ -137,8 +140,8 @@ def ingest_run() -> Dict[str, Any]:
     Returns:
         Dict with execution results for each script
     """
-    import subprocess
     import os
+    import subprocess
 
     scripts = [
         "ingestion/celestrak.py",
@@ -147,13 +150,14 @@ def ingest_run() -> Dict[str, Any]:
         "ingestion/discos.py",
     ]
 
-    results = []
+    results: list[dict[str, Any]] = []
     for script in scripts:
         script_path = os.path.join(os.path.dirname(__file__), script)
         result = subprocess.run(
             [sys.executable, script_path],
             capture_output=True,
             text=True,
+            check=False,
         )
         results.append({
             "script": script,
@@ -162,7 +166,9 @@ def ingest_run() -> Dict[str, Any]:
             "stderr": result.stderr[:500] if result.stderr else "",
         })
 
-    return {"scripts": results, "overall_exit_code": max((r["exit_code"] for r in results), default=0)}
+    exit_codes: list[int] = [r["exit_code"] for r in results]
+    overall_exit_code = max(exit_codes, default=0)
+    return {"scripts": results, "overall_exit_code": overall_exit_code}
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +235,7 @@ def main() -> int:
                 print(f"{r['script']}: {status}")
                 if r["stderr"]:
                     print(f"  stderr: {r['stderr'][:200]}")
-            return result["overall_exit_code"]
+            return int(result["overall_exit_code"])
 
         else:
             print(f"Unknown command: {command}")
@@ -240,7 +246,7 @@ def main() -> int:
         print("Usage: python -m backend.commands <command> [args...]")
         print("Commands: state, diagnose, health, ingest")
         return 1
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - CLI boundary must report failures
         print(f"Error: {exc}")
         return 2
 

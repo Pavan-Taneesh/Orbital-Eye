@@ -7,6 +7,14 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+env:
+  DB_HOST: localhost
+  DB_NAME: project_db
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  FRONTEND_ORIGIN: http://localhost:3000
+  PYTHONPATH: ${{ github.workspace }}
+
 jobs:
   lint:
     name: Lint
@@ -25,7 +33,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pip upgrade
           pip install -r requirements.txt
           pip install ruff
 
@@ -53,32 +60,59 @@ jobs:
           pip install mypy types-psycopg2
 
       - name: Run mypy type checking
-        run: mypy .
-        
+        run: mypy --config-file mypy.ini .
+
   test:
-     name: Backend Tests
-     runs-on: ubuntu-latest
-     defaults:
-       run:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: backend
-     env:
-       PYTHONPATH: ${{ github.workspace }}
-     steps:
-       - name: Checkout code
-         uses: actions/checkout@v4
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: project_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-       - name: Set up Python
-         uses: actions/setup-python@v5
-         with:
-           python-version: "3.12"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-       - name: Install dependencies
-         run: |
+      - name: Install dependencies
+        run: |
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio httpx astropy
 
-       - name: Run backend tests
-         run: pytest -m "not integration" --cov=./logic -v
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            sleep 1
+          done
+
+      - name: Initialize database schema
+        run: |
+          psql -h localhost -U postgres -d project_db -f db/schema.sql
+          psql -h localhost -U postgres -d project_db -f db/views.sql
+          psql -h localhost -U postgres -d project_db -f db/seed.sql
+
+      - name: Run backend tests
+        run: pytest -m "not integration" --cov=./logic -v
 
   build:
     name: Production Build

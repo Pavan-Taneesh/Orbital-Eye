@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import pytest
-
 from backend.application_state import (
-    LoadingState,
     AIState,
-    ScientificState,
-    VisualState,
     AIStatus,
     ApplicationState,
+    LoadingState,
+    ScientificState,
+    VisualState,
     get_app_state,
     reset_app_state,
 )
