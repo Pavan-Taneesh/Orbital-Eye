@@ -235,6 +235,7 @@ def make_service(
     from .fake_provider import FakeProvider
     from .gemini_provider import GeminiProvider
 
+    provider: ProviderInterface
     if provider_name == "fake":
         provider = FakeProvider(**provider_kwargs)
     elif provider_name == "gemini":

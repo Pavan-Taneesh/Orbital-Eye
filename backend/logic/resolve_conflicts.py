@@ -22,7 +22,7 @@ FIELD_PRIORITY = {
     "mass":          [4, 2, 3],
     "image_url":     [3, 4],      # SatNOGS, DISCOS
 }
-DEFAULT_PRIORITY = []  # empty = fall back to confidence + recency
+DEFAULT_PRIORITY: list[int] = []  # empty = fall back to confidence + recency
 
 
 def resolve_conflicts():

@@ -52,7 +52,7 @@ def search_objects(
     offset = max(0, offset)
 
     base_where = "WHERE o.name ILIKE %s"
-    params = [f"%{q}%"]
+    params: list[Any] = [f"%{q}%"]
     if category is not None:
         base_where += " AND o.category_id = %s"
         params.append(category)

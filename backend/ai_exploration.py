@@ -68,7 +68,7 @@ class ExplorationContext:
     diagnostics: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        base = {
+        base: dict[str, Any] = {
             "selected_object_id": self.selected_object_id,
             "hovered_object_id": self.hovered_object_id,
             "selected_categories": self.selected_categories,

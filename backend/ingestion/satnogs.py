@@ -28,7 +28,7 @@ print(f"{len(norad_to_object)} objects in DB to match against SatNOGS")
 
 # --- Fetch SatNOGS satellites, handle pagination (DRF-style) or plain list ---
 all_records = []
-url = API_URL
+url: str | None = API_URL
 
 while url:
     response = requests.get(url, timeout=30)

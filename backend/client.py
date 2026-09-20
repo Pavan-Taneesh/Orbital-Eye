@@ -13,9 +13,10 @@ Typical usage:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeVar
 
 import httpx
+from pydantic import BaseModel
 
 from .schemas import (
     DiagnosticsResponse,
@@ -78,7 +79,7 @@ class APIClient:
         Returns:
             HealthResponse with status "ok"
         """
-        data = self._request("GET", "/api/v1/health")
+        data = self._handle_response(self._request("GET", "/api/v1/health"))
         return self._handle_response_data(HealthResponse, data)
 
     # -----------------------------------------------------------------
@@ -103,7 +104,7 @@ class APIClient:
             "limit": limit,
             "offset": offset,
         }
-        data = self._request("GET", "/api/v1/objects/search", params=params)
+        data = self._handle_response(self._request("GET", "/api/v1/objects/search", params=params))
         return self._handle_response_data(PaginatedResponse, data)
 
     # -----------------------------------------------------------------
@@ -126,7 +127,7 @@ class APIClient:
             "limit": limit,
             "offset": offset,
         }
-        data = self._request("GET", "/api/v1/objects", params=params)
+        data = self._handle_response(self._request("GET", "/api/v1/objects", params=params))
         return self._handle_response_data(PaginatedResponse, data)
 
     # -----------------------------------------------------------------
@@ -143,7 +144,7 @@ class APIClient:
             ObjectDetails with full object information
         """
         path = f"/api/v1/objects/{object_id}"
-        data = self._request("GET", path)
+        data = self._handle_response(self._request("GET", path))
         return self._handle_response_data(ObjectDetails, data)
 
     # -----------------------------------------------------------------
@@ -160,7 +161,7 @@ class APIClient:
             StateResponse with orbital state (Contract C)
         """
         path = f"/api/v1/objects/{object_id}/state"
-        data = self._request("GET", path)
+        data = self._handle_response(self._request("GET", path))
         return self._handle_response_data(StateResponse, data)
 
     # -----------------------------------------------------------------
@@ -177,7 +178,7 @@ class APIClient:
             DiagnosticsResponse with dev-only debug values
         """
         path = f"/api/v1/objects/{object_id}/diagnostics"
-        data = self._request("GET", path)
+        data = self._handle_response(self._request("GET", path))
         return self._handle_response_data(DiagnosticsResponse, data)
 
     # -----------------------------------------------------------------
@@ -194,14 +195,16 @@ class APIClient:
             MediaResponse with media attachments for the object
         """
         path = f"/api/v1/objects/{object_id}/media"
-        data = self._request("GET", path)
+        data = self._handle_response(self._request("GET", path))
         return self._handle_response_data(MediaResponse, data)
 
     # -----------------------------------------------------------------
     # Private: deserialize response data into a Pydantic model
     # -----------------------------------------------------------------
 
-    def _handle_response_data(self, model: type, data: dict) -> Any:
+    ModelT = TypeVar("ModelT", bound=BaseModel)
+
+    def _handle_response_data(self, model: type[ModelT], data: dict[str, Any]) -> ModelT:
         """Validate raw JSON data into a Pydantic model instance.
 
         Args:

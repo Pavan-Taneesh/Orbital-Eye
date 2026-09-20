@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from logic.state_model import get_state  # type: ignore
+from logic.state_model import get_state
 
 
 def state_service(object_id: int, when: Any | None = None) -> dict[str, Any]:
@@ -42,4 +42,4 @@ def state_service(object_id: int, when: Any | None = None) -> dict[str, Any]:
     state = get_state(object_id, when)
     if state["status"] == "unavailable":
         raise HTTPException(status_code=404, detail="no orbital data for this object")
-    return state
+    return dict(state)

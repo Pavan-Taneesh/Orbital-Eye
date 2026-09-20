@@ -123,7 +123,8 @@ def health_command() -> dict[str, str]:
 
     from backend.services.health_service import health_service as _health_service
 
-    return _health_service()
+    result = _health_service()
+    return {"status": str(result.get("status", "unknown"))}
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +150,7 @@ def ingest_run() -> dict[str, Any]:
         "ingestion/discos.py",
     ]
 
-    results = []
+    results: list[dict[str, Any]] = []
     for script in scripts:
         script_path = os.path.join(os.path.dirname(__file__), script)
         result = subprocess.run(
@@ -165,7 +166,9 @@ def ingest_run() -> dict[str, Any]:
             "stderr": result.stderr[:500] if result.stderr else "",
         })
 
-    return {"scripts": results, "overall_exit_code": max((r["exit_code"] for r in results), default=0)}
+    exit_codes: list[int] = [r["exit_code"] for r in results]
+    overall_exit_code = max(exit_codes, default=0)
+    return {"scripts": results, "overall_exit_code": overall_exit_code}
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +235,7 @@ def main() -> int:
                 print(f"{r['script']}: {status}")
                 if r["stderr"]:
                     print(f"  stderr: {r['stderr'][:200]}")
-            return result["overall_exit_code"]
+            return int(result["overall_exit_code"])
 
         else:
             print(f"Unknown command: {command}")

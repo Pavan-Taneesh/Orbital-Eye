@@ -25,6 +25,21 @@ from schemas import (
     PaginatedResponse,
     StateResponse,
 )
+from services.diagnostics_service import diagnostics_service as diagnostics_service_svc
+from services.health_service import health_service as health_service_svc
+from services.object_service import (
+    get_object as get_object_svc,
+)
+from services.object_service import (
+    get_object_media as get_object_media_svc,
+)
+from services.object_service import (
+    list_objects as list_objects_svc,
+)
+from services.object_service import (
+    search_objects as search_objects_svc,
+)
+from services.state_service import state_service as state_service_svc
 
 app = FastAPI(title="Space-website API", version="0.1.0")
 
@@ -37,8 +52,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-from services import diagnostics_service, health_service, state_service
 
 
 class AIExploreRequest(BaseModel):
@@ -66,7 +79,7 @@ def health_check():
     Returns:
         HealthResponse with status "ok"
     """
-    return health_service()
+    return health_service_svc()
 
 
 # ---------------------------------------------------------------------------
@@ -94,9 +107,9 @@ def search_objects(
     Returns:
         PaginatedResponse with ObjectSummary results
     """
-    from services import search_objects as _search
+    data = search_objects_svc
 
-    data = _search(
+    return search_objects_svc(
         q=q,
         category=category,
         limit=limit,
@@ -124,9 +137,9 @@ def list_objects(
     Returns:
         PaginatedResponse with ObjectSummary results
     """
-    from services import list_objects as _list
+    data = list_objects_svc
 
-    data = _list(
+    return list_objects_svc(
         category=category,
         limit=limit,
         offset=offset,
@@ -155,10 +168,10 @@ def get_object(object_id: int):
         HTTPException 400: If object_id is not positive
         HTTPException 404: If object not found
     """
-    from services import get_object as _get_obj
+    data = get_object_svc
 
     try:
-        data = _get_obj(object_id=object_id)
+        return get_object_svc(object_id=object_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -191,8 +204,7 @@ def get_object_state(object_id: int):
     Raises:
         HTTPException 404: If no orbital data for this object
     """
-    data = state_service(object_id=object_id)
-    return data
+    return state_service_svc(object_id=object_id)
 
 
 # ---------------------------------------------------------------------------
@@ -218,8 +230,7 @@ def get_object_diagnostics(object_id: int):
     Raises:
         HTTPException 404: If no orbital data for this object
     """
-    data = diagnostics_service(object_id=object_id)
-    return data
+    return diagnostics_service_svc(object_id=object_id)
 
 
 # ---------------------------------------------------------------------------
@@ -245,10 +256,10 @@ def get_object_media(object_id: int):
     Raises:
         HTTPException 400: If object_id is not positive
     """
-    from services import get_object_media as _get_media
+    data = get_object_media_svc
 
     try:
-        data = _get_media(object_id=object_id)
+        return get_object_media_svc(object_id=object_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=400,

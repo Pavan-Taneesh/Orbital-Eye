@@ -310,66 +310,74 @@ class CommandExecutor:
         if not self.api_client:
             raise CommandExecutionError("No API client configured")
 
+        params = command.params
+
         try:
             if command.command == CommandName.FIND_OBJECT:
-                params = command.params
-                result = self.api_client.search(q=params.query, category=params.category)
-                return {"success": True, "data": result.model_dump()}
+                if isinstance(params, FindObjectParams):
+                    result = self.api_client.search(q=params.query, category=params.category)
+                    return {"success": True, "data": result.model_dump()}
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.FILTER_OBJECTS:
-                params = command.params
-                result = self.api_client.list(category=params.category, limit=params.limit, offset=params.offset)
-                return {"success": True, "data": result.model_dump()}
+                if isinstance(params, FilterObjectsParams):
+                    result = self.api_client.list(category=params.category, limit=params.limit, offset=params.offset)
+                    return {"success": True, "data": result.model_dump()}
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.FOCUS_OBJECT:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                state = self.api_client.state(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "state": state.model_dump(),
-                    },
-                }
+                if isinstance(params, FocusObjectParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    state = self.api_client.state(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "state": state.model_dump(),
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.SHOW_ORBIT:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                state = self.api_client.state(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "state": state.model_dump(),
-                        "orbit_duration_minutes": params.duration_minutes,
-                    },
-                }
+                if isinstance(params, ShowOrbitParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    state = self.api_client.state(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "state": state.model_dump(),
+                            "orbit_duration_minutes": params.duration_minutes,
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.FOLLOW_OBJECT:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                state = self.api_client.state(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "state": state.model_dump(),
-                        "follow_enabled": params.enable,
-                    },
-                }
+                if isinstance(params, FollowObjectParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    state = self.api_client.state(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "state": state.model_dump(),
+                            "follow_enabled": params.enable,
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
             elif command.command == CommandName.OPEN_INFORMATION_PANEL:
-                params = command.params
-                result = self.api_client.get(object_id=params.object_id)
-                media = self.api_client.media(object_id=params.object_id)
-                return {
-                    "success": True,
-                    "data": {
-                        "object": result.model_dump(),
-                        "media": media.model_dump(),
-                    },
-                }
+                if isinstance(params, OpenInformationPanelParams):
+                    result = self.api_client.get(object_id=params.object_id)
+                    media = self.api_client.media(object_id=params.object_id)
+                    return {
+                        "success": True,
+                        "data": {
+                            "object": result.model_dump(),
+                            "media": media.model_dump(),
+                        },
+                    }
+                raise CommandExecutionError(f"Invalid params for {command.command}")
 
         except APIError as exc:
             raise CommandExecutionError(

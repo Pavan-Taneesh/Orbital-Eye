@@ -42,7 +42,7 @@ class GeminiProvider(ProviderInterface):
         # Load API key from env if not provided
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
-        self._client = None
+        self._client: Any = None
         self._init_client()
 
     def _init_client(self) -> None:

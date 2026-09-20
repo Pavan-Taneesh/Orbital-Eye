@@ -54,7 +54,11 @@ for category_id, group in GROUPS.items():
             object_id = row[0]
         else:
             cur.execute("SELECT object_id FROM objects WHERE norad_id = %s", (norad_id,))
-            object_id = cur.fetchone()[0]
+            row2 = cur.fetchone()
+            if row2:
+                object_id = row2[0]
+            else:
+                continue
 
         cur.execute("""
             INSERT INTO orbital_elements (
@@ -134,14 +138,26 @@ for group in DEBRIS_GROUPS:
             RETURNING object_id;
         """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID))
 
+        cur.execute("""
+            INSERT INTO objects (name, norad_id, cospar_id, category_id)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (norad_id) DO NOTHING
+            RETURNING object_id;
+        """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID))
+
         row = cur.fetchone()
         if row:
             object_id = row[0]
         else:
             cur.execute("SELECT object_id FROM objects WHERE norad_id = %s", (norad_id,))
-            object_id = cur.fetchone()[0]
+            row2 = cur.fetchone()
+            if row2:
+                object_id = row2[0]
+            else:
+                continue
 
         cur.execute("""
+            INSERT INTO orbital_elements (
             INSERT INTO orbital_elements (
                 object_id, source_id, epoch, mean_motion, eccentricity,
                 inclination, ra_of_asc_node, arg_of_pericenter, mean_anomaly,
