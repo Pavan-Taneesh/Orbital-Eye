@@ -77,6 +77,23 @@ export interface ErrorResponse {
   detail: string;
 }
 
+export interface AICommandResult {
+  command: string;
+  result?: {
+    data?: {
+      object?: { object_id: number };
+      object_id?: number;
+      results?: Array<{ object_id: number }>;
+      category?: number;
+      count?: number;
+      total_count?: number;
+      limit?: number;
+      offset?: number;
+      has_more?: boolean;
+    };
+  };
+}
+
 export interface SearchParams {
   q?: string;
   category?: number;
@@ -93,6 +110,24 @@ export interface ListParams {
 }
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+// Default timeout for API requests (10 seconds)
+export const API_TIMEOUT_MS = 10000;
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 export interface APIError extends Error {
   statusCode: number;
@@ -135,39 +170,48 @@ function buildQuery(params: Record<string, unknown>): string {
 
 export const api = {
   health: async (): Promise<HealthResponse> => {
-    const response = await fetch(`${API_BASE_URL}/health`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/health`);
     return handleResponse<HealthResponse>(response);
   },
 
   search: async (params: SearchParams = {}): Promise<PaginatedResponse> => {
     const query = buildQuery(params as Record<string, unknown>);
-    const response = await fetch(`${API_BASE_URL}/objects/search?${query}`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/search?${query}`);
     return handleResponse<PaginatedResponse>(response);
   },
 
   list: async (params: ListParams = {}): Promise<PaginatedResponse> => {
     const query = buildQuery(params as Record<string, unknown>);
-    const response = await fetch(`${API_BASE_URL}/objects?${query}`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects?${query}`);
     return handleResponse<PaginatedResponse>(response);
   },
 
   get: async (objectId: number): Promise<ObjectDetails> => {
-    const response = await fetch(`${API_BASE_URL}/objects/${objectId}`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}`);
     return handleResponse<ObjectDetails>(response);
   },
 
   state: async (objectId: number): Promise<StateResponse> => {
-    const response = await fetch(`${API_BASE_URL}/objects/${objectId}/state`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}/state`);
     return handleResponse<StateResponse>(response);
   },
 
   diagnostics: async (objectId: number): Promise<DiagnosticsResponse> => {
-    const response = await fetch(`${API_BASE_URL}/objects/${objectId}/diagnostics`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}/diagnostics`);
     return handleResponse<DiagnosticsResponse>(response);
   },
 
   media: async (objectId: number): Promise<MediaResponse> => {
-    const response = await fetch(`${API_BASE_URL}/objects/${objectId}/media`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}/media`);
     return handleResponse<MediaResponse>(response);
+  },
+
+  explore: async (params: { request: string }): Promise<AICommandResult> => {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/ai/explore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    return handleResponse<AICommandResult>(response);
   },
 };
