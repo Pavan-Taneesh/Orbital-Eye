@@ -198,7 +198,10 @@ def get_object(object_id: int) -> dict[str, Any]:
         "SELECT url, media_type, source_id FROM media WHERE object_id = %s;",
         (object_id,),
     )
-    media_rows = cur.fetchall()
+    media_rows = [
+        {"url": r[0], "media_type": r[1], "source_id": r[2]}
+        for r in cur.fetchall()
+    ]
     cur.close()
     conn.close()
 
@@ -237,12 +240,15 @@ def get_object_media(object_id: int) -> dict[str, Any]:
         "SELECT url, media_type, source_id FROM media WHERE object_id = %s;",
         (object_id,),
     )
-    media_rows = cur.fetchall()
+    media_rows = [
+        {"url": r[0], "media_type": r[1], "source_id": r[2]}
+        for r in cur.fetchall()
+    ]
     cur.close()
     conn.close()
 
     media_items = [
-        {"url": row.get("url", ""), "media_type": row.get("media_type", "image"), "source_id": row.get("source_id")}
+        {"url": row["url"], "media_type": row["media_type"], "source_id": row["source_id"]}
         for row in media_rows
     ]
 

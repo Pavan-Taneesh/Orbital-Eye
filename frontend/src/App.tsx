@@ -3,12 +3,16 @@ import { OrbitControls } from '@react-three/drei'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, MutableRefObject } from 'react'
 import * as THREE from 'three'
-import { api, type ObjectSummary } from './lib/types'
+import { api, type ObjectSummary, type StateResponse, type ObjectDetails, type MediaResponse, type AICommandResult } from './lib/types'
 
 const EARTH_RADIUS = 2.2
+const EARTH_RADIUS_KM = 6371
 
 // Keep the known-good rotation speed.
 const EARTH_ROTATION_SPEED = 0.018
+
+// Scale factor: backend returns ECEF position in km, Three.js uses EARTH_RADIUS units
+const ECEF_TO_THREE_SCALE = EARTH_RADIUS / EARTH_RADIUS_KM
 
 function loadTexture(
   loader: THREE.TextureLoader,
@@ -66,23 +70,6 @@ const CATEGORIES: Category[] = [
   { id: 'wx', name: 'Weather', color: '#ff6f91', backendCategoryId: 4 },
   { id: 'sci', name: 'Scientific', color: '#b58bff', backendCategoryId: 1 },
 ]
-
-type AICommandResult = {
-  command: string
-  result?: {
-    data?: {
-      object?: { object_id: number }
-      object_id?: number
-      results?: Array<{ object_id: number }>
-      category?: number
-      count?: number
-      total_count?: number
-      limit?: number
-      offset?: number
-      has_more?: boolean
-    }
-  }
-}
 
 function categoryColor(categoryId: string): string {
   return CATEGORIES.find((c) => c.id === categoryId)?.color ?? '#ffffff'
@@ -549,6 +536,7 @@ function SatellitesLayer({
   onHover,
   positionsRef,
   satellites,
+  selectedSatelliteState,
 }: {
   activeCategories: Set<string>
   selectedId: string | null
@@ -556,6 +544,7 @@ function SatellitesLayer({
   onHover: (id: string | null) => void
   positionsRef: MutableRefObject<Map<string, THREE.Vector3>>
   satellites: SatelliteDef[]
+  selectedSatelliteState: StateResponse | null
 }) {
   const pointsRef = useRef<THREE.Points>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
@@ -569,7 +558,16 @@ function SatellitesLayer({
     const positionsById = new Map<string, THREE.Vector3>()
 
     satellites.forEach((sat, index) => {
-      const pos = satellitePosition(sat)
+      let pos: THREE.Vector3
+      
+      // Use real ECEF position for selected satellite if available
+      if (selectedSatelliteState?.position && sat.id === selectedId) {
+        const [x, y, z] = selectedSatelliteState.position
+        pos = new THREE.Vector3(x * ECEF_TO_THREE_SCALE, y * ECEF_TO_THREE_SCALE, z * ECEF_TO_THREE_SCALE)
+      } else {
+        pos = satellitePosition(sat)
+      }
+      
       positions[index * 3] = pos.x
       positions[index * 3 + 1] = pos.y
       positions[index * 3 + 2] = pos.z
@@ -582,7 +580,7 @@ function SatellitesLayer({
     })
 
     return { positions, colors, positionsById }
-  }, [satellites])
+  }, [satellites, selectedId, selectedSatelliteState])
 
   useEffect(() => {
     positionsRef.current.clear()
@@ -828,7 +826,7 @@ function SatellitesLayer({
    CAMERA RIG — handles "fly to satellite" + live tracking
    ============================================================ */
 
-function CameraRig({ phase, selectedId, satellites }: { phase: IntroPhase; selectedId: string | null; satellites: SatelliteDef[] }) {
+function CameraRig({ phase, selectedId, satellites, selectedSatelliteState }: { phase: IntroPhase; selectedId: string | null; satellites: SatelliteDef[]; selectedSatelliteState: StateResponse | null }) {
   const { controls, camera } = useThree((s) => ({ controls: s.controls, camera: s.camera })) as unknown as {
     controls: { target: THREE.Vector3; update: () => void; enabled?: boolean } | null
     camera: THREE.PerspectiveCamera
@@ -854,7 +852,19 @@ function CameraRig({ phase, selectedId, satellites }: { phase: IntroPhase; selec
       const sat = satellites.find((item) => item.id === selectedId)
       if (!sat) return
 
-      const satPosition = satellitePosition(sat)
+      // Use real ECEF position for camera flight if available
+      let satPosition: THREE.Vector3
+      if (selectedSatelliteState?.position) {
+        const [x, y, z] = selectedSatelliteState.position
+        satPosition = new THREE.Vector3(
+          x * ECEF_TO_THREE_SCALE,
+          y * ECEF_TO_THREE_SCALE,
+          z * ECEF_TO_THREE_SCALE
+        )
+      } else {
+        satPosition = satellitePosition(sat)
+      }
+      
       const direction = satPosition.clone().normalize()
       const destinationPosition = direction.multiplyScalar(
         Math.max(satPosition.length() + 1.05, EARTH_RADIUS + 1.6),
@@ -885,7 +895,7 @@ function CameraRig({ phase, selectedId, satellites }: { phase: IntroPhase; selec
       }
       if ('enabled' in controls) controls.enabled = false
     }
-  }, [phase, selectedId, controls, camera, satellites])
+  }, [phase, selectedId, controls, camera, satellites, selectedSatelliteState])
 
   useFrame((_, delta) => {
     if (phase !== 'main' || !controls) return
@@ -947,6 +957,7 @@ function Scene({
   onSelectSatellite,
   positionsRef,
   satellites,
+  selectedSatelliteState,
 }: {
   phase: IntroPhase
   onEarthReady?: () => void
@@ -956,6 +967,7 @@ function Scene({
   onSelectSatellite: (id: string) => void
   positionsRef: MutableRefObject<Map<string, THREE.Vector3>>
   satellites: SatelliteDef[]
+  selectedSatelliteState: StateResponse | null
 }) {
   return (
     <>
@@ -975,6 +987,7 @@ function Scene({
           onHover={() => {}}
           positionsRef={positionsRef}
           satellites={satellites}
+          selectedSatelliteState={selectedSatelliteState}
         />
       )}
 
@@ -993,7 +1006,7 @@ function Scene({
         onEnd={() => { document.body.style.cursor = 'auto' }}
       />
 
-      <CameraRig phase={phase} selectedId={selectedId} satellites={satellites} />
+      <CameraRig phase={phase} selectedId={selectedId} satellites={satellites} selectedSatelliteState={selectedSatelliteState} />
     </>
   )
 }
@@ -1152,22 +1165,12 @@ function AIPanel({
     setInput('')
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'}/ai/explore`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request: text }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        const cmd = data.command ? `✓ Executed: ${data.command}` : '✓ Done'
-        const detail = data.result ? ` — ${JSON.stringify(data.result).slice(0, 200)}` : ''
-        setMessages((m) => [...m, { role: 'assistant', text: `${cmd}${detail}` }])
-        if (data.command) {
-          onExecuteCommand({ command: data.command, result: data.result })
-        }
-      } else {
-        const err = data.error || 'Unknown error'
-        setMessages((m) => [...m, { role: 'assistant', text: `✗ ${err}` }])
+      const data = await api.explore({ request: text })
+      const cmd = data.command ? `✓ Executed: ${data.command}` : '✓ Done'
+      const detail = data.result ? ` — ${JSON.stringify(data.result).slice(0, 200)}` : ''
+      setMessages((m) => [...m, { role: 'assistant', text: `${cmd}${detail}` }])
+      if (data.command) {
+        onExecuteCommand({ command: data.command, result: data.result })
       }
     } catch {
       setMessages((m) => [...m, { role: 'assistant', text: '✗ Request failed. Check backend connection.' }])
@@ -1229,7 +1232,7 @@ function AIPanel({
 }
 
 /* ============================================================
-   SEARCH BAR — manual "go to satellite" by name
+   SEARCH BAR — backend search API
    ============================================================ */
 
 function SatelliteSearch({
@@ -1244,19 +1247,30 @@ function SatelliteSearch({
   satellites: SatelliteDef[]
 }) {
   const [query, setQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<ObjectSummary[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
-    const q = query.trim().toLowerCase()
+    const q = query.trim()
     if (!q) return
 
-    const match = satellites.find((s) => s.name.toLowerCase().includes(q))
-    if (match) {
+    setSearchLoading(true)
+    setSearchError(null)
+    setSearchResults([])
+
+    try {
+      const data = await api.search({ q })
+      setSearchResults(data.results)
       setNotFound(false)
-      onGo(match.id)
-    } else {
+    } catch (err) {
+      setSearchError(err instanceof Error ? err.message : 'Search failed')
+      setSearchResults([])
       setNotFound(true)
+    } finally {
+      setSearchLoading(false)
     }
   }
 
@@ -1281,7 +1295,9 @@ function SatelliteSearch({
         }}
         placeholder="Search satellite name…"
       />
-      <button type="submit" aria-label="Search satellite">ENTER</button>
+      <button type="submit" aria-label="Search satellite" disabled={searchLoading}>
+        {searchLoading ? 'Searching…' : 'ENTER'}
+      </button>
 
       {selectedSat && (
         <button
@@ -1290,10 +1306,39 @@ function SatelliteSearch({
           onClick={() => {
             onClear()
             setQuery('')
+            setSearchResults([])
           }}
         >
           ✕ {selectedSat.name}
         </button>
+      )}
+
+      {searchError && <span className="search-not-found">{searchError}</span>}
+
+      {searchLoading && !searchError && (
+        <span className="search-not-found">Loading search results…</span>
+      )}
+
+      {searchResults.length > 0 && !searchError && (
+        <div className="search-results">
+          {searchResults.map((obj) => (
+            <div
+              key={obj.object_id}
+              className="search-result-item"
+              onClick={() => {
+                const satId = `obj-${obj.object_id}`
+                onGo(satId)
+                setSearchResults([])
+                setQuery('')
+              }}
+            >
+              <span className="search-result-name">{obj.name}</span>
+              {obj.norad_id && (
+                <span className="search-result-norad">NORAD {obj.norad_id}</span>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {notFound && <span className="search-not-found">No match</span>}
@@ -1301,11 +1346,36 @@ function SatelliteSearch({
   )
 }
 
-function SatelliteInfoCard({ selectedId, onClear, satellites }: { selectedId: string | null; onClear: () => void; satellites: SatelliteDef[] }) {
+function SatelliteInfoCard({ 
+  selectedId, 
+  onClear, 
+  satellites, 
+  details, 
+  media,
+  loading,
+  error,
+  onRetry
+}: { 
+  selectedId: string | null; 
+  onClear: () => void; 
+  satellites: SatelliteDef[];
+  details: ObjectDetails | null;
+  media: MediaResponse | null;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+}) {
   if (!selectedId) return null
   const sat = satellites.find((s) => s.id === selectedId)
   if (!sat) return null
   const category = CATEGORIES.find((c) => c.id === sat.categoryId)
+
+  // Use real backend data if available, fallback to local satellite data
+  const name = details?.name ?? sat.name
+  const categoryName = details?.category ?? category?.name ?? 'Satellite'
+  const noradId = details?.norad_id ?? sat.noradId
+  const metadata = details?.metadata ?? {}
+  const mediaItems = media?.media ?? []
 
   return (
     <aside className="satellite-info-card satellite-info-fixed" aria-live="polite">
@@ -1314,10 +1384,37 @@ function SatelliteInfoCard({ selectedId, onClear, satellites }: { selectedId: st
           className="info-card-dot"
           style={{ background: '#fff', boxShadow: `0 0 10px ${category?.color ?? '#fff'}` }}
         />
-        <span className="info-card-name">{sat.name}</span>
+        <span className="info-card-name">{name}</span>
         <button className="info-card-close" onClick={onClear} aria-label="Close satellite details">×</button>
       </div>
-      <div className="info-card-row"><span>Category</span><span>{category?.name ?? 'Satellite'}</span></div>
+      {loading && <div className="info-card-row loading-indicator">Loading satellite data…</div>}
+      {error && (
+        <div className="info-card-row error-message">
+          {error}
+          {onRetry && (
+            <button className="retry-button" onClick={onRetry} type="button">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+      <div className="info-card-row"><span>Category</span><span>{categoryName}</span></div>
+      {noradId && <div className="info-card-row"><span>NORAD ID</span><span>{noradId}</span></div>}
+      {(metadata.launch_date || metadata.launchDate) && <div className="info-card-row"><span>Launch Date</span><span>{metadata.launch_date ?? metadata.launchDate}</span></div>}
+      {(metadata.operator || metadata.operator_name) && <div className="info-card-row"><span>Operator</span><span>{metadata.operator ?? metadata.operator_name}</span></div>}
+      {(metadata.mass || metadata.mass_kg) && <div className="info-card-row"><span>Mass</span><span>{metadata.mass ?? metadata.mass_kg} kg</span></div>}
+      {mediaItems.length > 0 && (
+        <div className="info-card-row">
+          <span>Media</span>
+          <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            {mediaItems.slice(0, 3).map((item, idx) => (
+              <a key={idx} href={item.url} target="_blank" rel="noopener noreferrer" className="info-media-link" style={{ color: '#4fd3ff', textDecoration: 'underline', fontSize: '9px' }}>
+                {item.media_type} {item.source_id ? `(src ${item.source_id})` : ''}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="info-card-row"><span>Orbit</span><span>{(sat.orbitRadiusFactor * EARTH_RADIUS).toFixed(2)}× Rₑ</span></div>
       <div className="info-card-row"><span>Inclination</span><span>{sat.inclinationDeg}°</span></div>
       <div className="info-card-focus">SATELLITE + ORBIT HIGHLIGHTED</div>
@@ -1382,8 +1479,19 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const positionsRef = useRef<Map<string, THREE.Vector3>>(new Map())
 
+  // Real orbital state for selected satellite (from /api/v1/objects/{id}/state)
+  const [selectedSatelliteState, setSelectedSatelliteState] = useState<StateResponse | null>(null)
+
+  // Real satellite details and media (from /api/v1/objects/{id} and /api/v1/objects/{id}/media)
+  const [selectedSatelliteDetails, setSelectedSatelliteDetails] = useState<ObjectDetails | null>(null)
+  const [selectedSatelliteMedia, setSelectedSatelliteMedia] = useState<MediaResponse | null>(null)
+
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
+
+  // Satellite details loading/error state
+  const [satelliteDetailsLoading, setSatelliteDetailsLoading] = useState(false)
+  const [satelliteDetailsError, setSatelliteDetailsError] = useState<string | null>(null)
 
   const toggleCategory = (id: string) => {
     setActiveCategories((prev) => {
@@ -1394,18 +1502,53 @@ export default function App() {
     })
   }
 
+  const fetchSatelliteData = async (objectId: number) => {
+    setSatelliteDetailsLoading(true)
+    setSatelliteDetailsError(null)
+    setSelectedSatelliteState(null)
+    setSelectedSatelliteDetails(null)
+    setSelectedSatelliteMedia(null)
+
+    try {
+      const [state, details, media] = await Promise.all([
+        api.state(objectId),
+        api.get(objectId),
+        api.media(objectId),
+      ])
+      setSelectedSatelliteState(state)
+      setSelectedSatelliteDetails(details)
+      setSelectedSatelliteMedia(media)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load satellite data'
+      setSatelliteDetailsError(message)
+      setSelectedSatelliteState(null)
+      setSelectedSatelliteDetails(null)
+      setSelectedSatelliteMedia(null)
+    } finally {
+      setSatelliteDetailsLoading(false)
+    }
+  }
+
   const goToSatellite = (id: string) => {
     const sat = satellites.find((s) => s.id === id)
     if (sat && !activeCategories.has(sat.categoryId)) {
       setActiveCategories((prev) => new Set(prev).add(sat.categoryId))
     }
     setSelectedId(id)
+    // Fetch real orbital state for this satellite
+    const objId = sat ? parseInt(sat.id.replace('obj-', ''), 10) : null
+    if (objId) {
+      fetchSatelliteData(objId)
+    }
     // Selection is intentionally non-zooming: keep the Earth framing stable.
     setSidebarOpen(false)
   }
 
   const clearSelection = () => {
     setSelectedId(null)
+    setSelectedSatelliteState(null)
+    setSelectedSatelliteDetails(null)
+    setSelectedSatelliteMedia(null)
   }
 
   const executeAICommand = (cmdResult: AICommandResult) => {
@@ -1494,6 +1637,7 @@ export default function App() {
             onSelectSatellite={goToSatellite}
             positionsRef={positionsRef}
             satellites={satellites}
+            selectedSatelliteState={selectedSatelliteState}
           />
         </Canvas>
       </div>
@@ -1536,7 +1680,16 @@ export default function App() {
           />
 
           <AIPanel mobileOpen={aiOpen} setMobileOpen={setAiOpen} satelliteInfoOpen={Boolean(selectedId)} onExecuteCommand={executeAICommand} />
-          <SatelliteInfoCard selectedId={selectedId} onClear={clearSelection} satellites={satellites} />
+          <SatelliteInfoCard 
+            selectedId={selectedId} 
+            onClear={clearSelection} 
+            satellites={satellites}
+            details={selectedSatelliteDetails}
+            media={selectedSatelliteMedia}
+            loading={satelliteDetailsLoading}
+            error={satelliteDetailsError}
+            onRetry={selectedId ? () => fetchSatelliteData(parseInt(selectedId.replace('obj-', ''), 10)) : undefined}
+          />
           <div className="earth-controls-hint">
             DRAG TO ROTATE&nbsp;&nbsp;·&nbsp;&nbsp;SCROLL TO ZOOM
           </div>

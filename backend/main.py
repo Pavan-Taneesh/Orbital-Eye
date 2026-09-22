@@ -49,8 +49,8 @@ app.add_middleware(
         os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 
@@ -107,15 +107,12 @@ def search_objects(
     Returns:
         PaginatedResponse with ObjectSummary results
     """
-    data = search_objects_svc
-
     return search_objects_svc(
         q=q,
         category=category,
         limit=limit,
         offset=offset,
     )
-    return data
 
 
 @app.get("/api/v1/objects", response_model=PaginatedResponse)
@@ -137,14 +134,11 @@ def list_objects(
     Returns:
         PaginatedResponse with ObjectSummary results
     """
-    data = list_objects_svc
-
     return list_objects_svc(
         category=category,
         limit=limit,
         offset=offset,
     )
-    return data
 
 
 # ---------------------------------------------------------------------------
@@ -168,8 +162,6 @@ def get_object(object_id: int):
         HTTPException 400: If object_id is not positive
         HTTPException 404: If object not found
     """
-    data = get_object_svc
-
     try:
         return get_object_svc(object_id=object_id)
     except ValueError as exc:
@@ -177,8 +169,6 @@ def get_object(object_id: int):
             status_code=400,
             detail=str(exc),
         ) from exc
-
-    return data
 
 
 # ---------------------------------------------------------------------------
@@ -256,8 +246,6 @@ def get_object_media(object_id: int):
     Raises:
         HTTPException 400: If object_id is not positive
     """
-    data = get_object_media_svc
-
     try:
         return get_object_media_svc(object_id=object_id)
     except ValueError as exc:
@@ -265,8 +253,6 @@ def get_object_media(object_id: int):
             status_code=400,
             detail=str(exc),
         ) from exc
-
-    return data
 
 
 # ---------------------------------------------------------------------------

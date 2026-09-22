@@ -1,4 +1,25 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: space-website-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME:-project_db}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-your_password_here}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/db/views.sql:/docker-entrypoint-initdb.d/02-views.sql
+      - ./backend/db/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-project_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -8,7 +29,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DB_HOST=${DB_HOST:-localhost}
+      - DB_HOST=postgres
       - DB_NAME=${DB_NAME:-project_db}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-your_password_here}
@@ -19,6 +40,9 @@ services:
       - DISCOS_TOKEN=${DISCOS_TOKEN:-your_discos_api_token}
     volumes:
       - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
@@ -40,3 +64,6 @@ services:
       "
     environment:
       - API_BASE_URL=http://localhost:8000/api/v1
+
+volumes:
+  postgres_data:
