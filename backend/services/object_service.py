@@ -15,7 +15,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from logic.state_model import connect
+from db import get_connection
 from schemas import build_object_details_from_row
 
 
@@ -57,7 +57,7 @@ def search_objects(
         base_where += " AND o.category_id = %s"
         params.append(category)
 
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
 
     # total count (for has_more / pagination metadata)
@@ -117,7 +117,7 @@ def list_objects(
         base_where = "WHERE category_id = %s"
         params.append(category)
 
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(f"SELECT COUNT(*) FROM objects {base_where};", params)
@@ -168,7 +168,7 @@ def get_object(object_id: int) -> dict[str, Any]:
     """
     _validate_object_id(object_id)
 
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(
@@ -234,7 +234,7 @@ def get_object_media(object_id: int) -> dict[str, Any]:
     """
     _validate_object_id(object_id)
 
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         "SELECT url, media_type, source_id FROM media WHERE object_id = %s;",

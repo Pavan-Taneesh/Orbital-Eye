@@ -5,31 +5,24 @@ compute position/velocity/altitude at a requested UTC datetime.
 Usage (standalone test):
     python logic/propagate.py <object_id>
 """
-import math
+from astropy import units as u
+from astropy.coordinates import TEME, ITRS, CartesianDifferential, CartesianRepresentation
+from astropy.time import Time
 import os
 import sys
+import math
 from datetime import datetime, timezone
 
-import psycopg2
-from astropy import units as u
-from astropy.coordinates import (
-    ITRS,
-    TEME,
-    CartesianDifferential,
-    CartesianRepresentation,
-)
-from astropy.time import Time
-from sgp4.api import WGS72, Satrec, jday
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from db import get_connection
+
+from sgp4.api import Satrec, WGS72
+from sgp4.api import jday
 
 
 def get_latest_elements(object_id: int):
     """Pull the latest (non-stale-aware) orbital_elements row for one object."""
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        dbname=os.getenv("DB_NAME", "project_db"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD"),
-    )
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
@@ -138,6 +131,6 @@ if __name__ == "__main__":
 
     print(f"object_id: {object_id}")
     print(f"time (UTC): {now.isoformat()}")
-    print(f"position (km, ECI): {position}")
-    print(f"velocity (km/s, ECI): {velocity}")
+    print(f"position (km, ECEF): {position}")
+    print(f"velocity (km/s, ECEF): {velocity}")
     print(f"altitude (km): {altitude_km:.2f}")

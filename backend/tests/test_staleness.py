@@ -9,25 +9,16 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import psycopg2
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from db import get_connection
 
 from state_model import STALE_THRESHOLD_HOURS, get_state
 
 
-def connect():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        dbname=os.getenv("DB_NAME", "project_db"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD"),
-    )
-
-
 def test_view_is_stale_matches_threshold():
     """latest_orbital_elements.is_stale should be true iff fetched_at is older than 24hrs."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         "SELECT object_id, fetched_at, is_stale FROM latest_orbital_elements;"
@@ -49,7 +40,7 @@ def test_view_is_stale_matches_threshold():
 
 def test_state_model_status_reflects_staleness():
     """state_model.get_state()'s status should be 'stale' if age_hours exceeds threshold, else 'fresh'."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT object_id FROM orbital_elements LIMIT 1;")
     object_id = cur.fetchone()[0]

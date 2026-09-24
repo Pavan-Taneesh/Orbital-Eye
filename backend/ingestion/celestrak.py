@@ -1,21 +1,12 @@
+import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from db import get_connection
 
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path, override=True)
-
-import os
-
-import psycopg2
 import requests
 
-conn = psycopg2.connect(
-    host=os.getenv("DB_HOST", "localhost"),
-    dbname=os.getenv("DB_NAME", "project_db"),
-    user=os.getenv("DB_USER", "postgres"),
-    password=os.getenv("DB_PASSWORD", ""),
-)
+conn = get_connection()
 cur = conn.cursor()
 
 SOURCE_ID = 1  # CelesTrak
@@ -138,13 +129,6 @@ for group in DEBRIS_GROUPS:
             RETURNING object_id;
         """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID))
 
-        cur.execute("""
-            INSERT INTO objects (name, norad_id, cospar_id, category_id)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (norad_id) DO NOTHING
-            RETURNING object_id;
-        """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID))
-
         row = cur.fetchone()
         if row:
             object_id = row[0]
@@ -157,7 +141,6 @@ for group in DEBRIS_GROUPS:
                 continue
 
         cur.execute("""
-            INSERT INTO orbital_elements (
             INSERT INTO orbital_elements (
                 object_id, source_id, epoch, mean_motion, eccentricity,
                 inclination, ra_of_asc_node, arg_of_pericenter, mean_anomaly,

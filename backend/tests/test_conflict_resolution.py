@@ -8,23 +8,14 @@ import os
 import sys
 from pathlib import Path
 
-import psycopg2
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
-
-
-def connect():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        dbname=os.getenv("DB_NAME", "project_db"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD"),
-    )
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from db import get_connection
 
 
 def test_no_duplicate_resolved_metadata_rows():
     """resolved_metadata should have exactly one row per (object_id, field_name)."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
@@ -47,7 +38,7 @@ def test_priority_fields_prefer_discos_over_spacetrack():
     if both DISCOS and Space-Track have a value for the same object+field,
     resolved_metadata should hold the DISCOS value, not Space-Track's.
     """
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
 
     # find an object+field where both source_id 4 (DISCOS) and source_id 2 (Space-Track)
@@ -92,7 +83,7 @@ def test_priority_fields_prefer_discos_over_spacetrack():
 
 def test_resolved_metadata_has_no_none_string_values():
     """Regression test for the SatNOGS 'None' string bug — should never resurface in resolved_metadata."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """

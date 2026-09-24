@@ -12,20 +12,13 @@ import psycopg2
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
-
-
-def connect():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        dbname=os.getenv("DB_NAME", "project_db"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD"),
-    )
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from db import get_connection
 
 
 def test_no_duplicate_norad_ids_in_objects():
     """objects.norad_id should be unique — no two rows share the same norad_id."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
@@ -44,7 +37,7 @@ def test_no_duplicate_norad_ids_in_objects():
 
 def test_unique_constraint_rejects_duplicate_insert():
     """Attempting to insert a norad_id that already exists should fail (DB-level enforcement)."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("SELECT norad_id FROM objects LIMIT 1;")
@@ -68,7 +61,7 @@ def test_object_count_matches_expected_minimum():
     This is an integration test that requires the full CelesTrak ingestion
     to have run and populated the database with the expected dataset.
     """
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM objects;")
     count = cur.fetchone()[0]

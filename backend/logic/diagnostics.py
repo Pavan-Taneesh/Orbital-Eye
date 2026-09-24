@@ -11,25 +11,18 @@ import os
 import sys
 from datetime import datetime, timezone
 
-import psycopg2
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from db import get_connection
+
 from propagate import build_satellite, get_latest_elements
 from sgp4.api import jday
 
 STALE_THRESHOLD_HOURS = 24
 
 
-def connect():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        dbname=os.getenv("DB_NAME", "project_db"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD"),
-    )
-
-
 def get_raw_latest_row(object_id: int):
     """Full raw orbital_elements row (all columns) for the latest entry."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
@@ -54,7 +47,7 @@ def get_raw_latest_row(object_id: int):
 
 def get_ingestion_history(object_id: int):
     """All orbital_elements rows ever fetched for this object, oldest to newest."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
