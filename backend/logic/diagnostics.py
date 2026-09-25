@@ -12,10 +12,10 @@ import sys
 from datetime import datetime, timezone
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from db import get_connection
-
 from propagate import build_satellite, get_latest_elements
 from sgp4.api import jday
+
+from db import get_connection
 
 STALE_THRESHOLD_HOURS = 24
 

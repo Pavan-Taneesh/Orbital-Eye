@@ -2,9 +2,9 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from db import get_connection
-
 import requests
+
+from db import get_connection
 
 SOURCE_ID = 3  # SatNOGS
 API_URL = "https://db.satnogs.org/api/satellites/?format=json"

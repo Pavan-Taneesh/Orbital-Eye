@@ -2,12 +2,12 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from db import get_connection
-
 import os
 import time
 
 import requests
+
+from db import get_connection
 
 # --- Config ---
 SOURCE_ID = 2  # Space-Track

@@ -12,9 +12,9 @@ import sys
 from datetime import datetime, timezone
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from db import get_connection
-
 from propagate import build_satellite, get_latest_elements, propagate
+
+from db import get_connection
 
 SOURCE_NAMES = {
     1: "CelesTrak",

@@ -4,7 +4,6 @@ Verifies norad_id UNIQUE constraint holds and cross-source matching
 doesn't produce duplicate objects.
 """
 
-import os
 import sys
 from pathlib import Path
 

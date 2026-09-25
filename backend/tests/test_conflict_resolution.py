@@ -4,7 +4,6 @@ Verifies resolved_metadata respects FIELD_PRIORITY ordering and
 upsert behavior (no duplicate object_id+field_name rows).
 """
 
-import os
 import sys
 from pathlib import Path
 

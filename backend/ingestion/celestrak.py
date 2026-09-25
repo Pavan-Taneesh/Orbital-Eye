@@ -2,9 +2,9 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from db import get_connection
-
 import requests
+
+from db import get_connection
 
 conn = get_connection()
 cur = conn.cursor()

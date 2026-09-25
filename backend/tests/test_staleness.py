@@ -4,16 +4,15 @@ Verifies latest_orbital_elements view + state_model.py status logic
 correctly classify fresh vs stale data.
 """
 
-import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from db import get_connection
-
 from state_model import STALE_THRESHOLD_HOURS, get_state
+
+from db import get_connection
 
 
 def test_view_is_stale_matches_threshold():

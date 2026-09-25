@@ -5,19 +5,24 @@ compute position/velocity/altitude at a requested UTC datetime.
 Usage (standalone test):
     python logic/propagate.py <object_id>
 """
-from astropy import units as u
-from astropy.coordinates import TEME, ITRS, CartesianDifferential, CartesianRepresentation
-from astropy.time import Time
+import math
 import os
 import sys
-import math
 from datetime import datetime, timezone
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from db import get_connection
+from astropy import units as u
+from astropy.coordinates import (
+    ITRS,
+    TEME,
+    CartesianDifferential,
+    CartesianRepresentation,
+)
+from astropy.time import Time
 
-from sgp4.api import Satrec, WGS72
-from sgp4.api import jday
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from sgp4.api import WGS72, Satrec, jday
+
+from db import get_connection
 
 
 def get_latest_elements(object_id: int):
