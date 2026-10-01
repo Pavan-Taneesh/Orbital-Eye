@@ -1,13 +1,15 @@
-import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+from dotenv import load_dotenv
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
 import os
 import time
 
+import psycopg2
 import requests
-
-from db import get_connection
 
 SOURCE_ID = 4  # ESA DISCOS
 API_BASE = "https://discosweb.esoc.esa.int/api/objects"
@@ -26,7 +28,13 @@ HEADERS = {
     "DiscosWeb-Api-Version": "2",
 }
 
-conn = get_connection()
+conn = psycopg2.connect(
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
+)
 cur = conn.cursor()
 
 # --- Build norad_id -> object_id lookup from DB (all categories) ---

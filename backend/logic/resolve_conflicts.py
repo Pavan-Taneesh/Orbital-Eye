@@ -1,8 +1,21 @@
-import os
-import sys
+from pathlib import Path
+from dotenv import load_dotenv
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from db import get_connection
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+import os
+import psycopg2
+
+
+def connect():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
+        dbname=os.getenv("DB_NAME", "project_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD"),
+    )
+
 
 # source_id reference (from seed.sql): 1=CelesTrak, 2=Space-Track, 3=SatNOGS, 4=ESA DISCOS
 
@@ -18,7 +31,7 @@ DEFAULT_PRIORITY: list[int] = []  # empty = fall back to confidence + recency
 
 
 def resolve_conflicts():
-    conn = get_connection()
+    conn = connect()
     cur = conn.cursor()
 
     # --- Pull all metadata rows ---

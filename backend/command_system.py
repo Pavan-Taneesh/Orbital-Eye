@@ -305,7 +305,7 @@ class CommandExecutor:
 
     def _execute_via_api(self, command: ApplicationCommand) -> dict[str, Any]:
         """Execute command via backend API client."""
-        from backend.client import APIError
+        from client import APIError
 
         if not self.api_client:
             raise CommandExecutionError("No API client configured")

@@ -1,2 +1,25 @@
 node_modules/
 .opencode/
+@'
+
+# Secrets / environment files
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/__pycache__/
+__pycache__/
+
+# Local/debug files
+backend/check_db.py
+
+# Backup / archived frontends
+frontend-cesium-backup/
+frontend-opencode/
+frontend1/
+frontend_backup/
+'@ | Add-Content .gitignore

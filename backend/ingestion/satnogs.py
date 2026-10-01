@@ -1,15 +1,25 @@
-import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-import requests
+from dotenv import load_dotenv
 
-from db import get_connection
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
+
+import os
+
+import psycopg2
+import requests
 
 SOURCE_ID = 3  # SatNOGS
 API_URL = "https://db.satnogs.org/api/satellites/?format=json"
 
-conn = get_connection()
+conn = psycopg2.connect(
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
+)
 cur = conn.cursor()
 
 # --- Build norad_id -> object_id lookup from DB (all categories) ---

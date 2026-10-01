@@ -18,7 +18,7 @@ from typing import Any, TypeVar
 import httpx
 from pydantic import BaseModel
 
-from .schemas import (
+from schemas import (
     DiagnosticsResponse,
     HealthResponse,
     MediaResponse,

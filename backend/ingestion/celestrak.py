@@ -1,12 +1,22 @@
-import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+from dotenv import load_dotenv
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
+
+import os
+
+import psycopg2
 import requests
 
-from db import get_connection
-
-conn = get_connection()
+conn = psycopg2.connect(
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
+)
 cur = conn.cursor()
 
 SOURCE_ID = 1  # CelesTrak
@@ -121,6 +131,13 @@ for group in DEBRIS_GROUPS:
         name = sat["OBJECT_NAME"]
         cospar_id = sat["OBJECT_ID"]
         epoch = sat["EPOCH"]
+
+        cur.execute("""
+            INSERT INTO objects (name, norad_id, cospar_id, category_id)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (norad_id) DO NOTHING
+            RETURNING object_id;
+        """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID))
 
         cur.execute("""
             INSERT INTO objects (name, norad_id, cospar_id, category_id)
