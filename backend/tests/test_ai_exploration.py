@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from backend.ai import FakeProvider, make_service
 from backend.ai_exploration import (
@@ -90,7 +92,6 @@ class TestAIExplorationService:
 
     def test_explore_missing_credentials(self):
         """Test explore with missing credentials."""
-        import os
         from backend.ai import GeminiProvider
 
         # Temporarily unset GOOGLE_API_KEY to simulate missing credentials

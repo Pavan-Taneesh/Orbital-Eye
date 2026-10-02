@@ -6,7 +6,6 @@ Usage (standalone test):
     python logic/propagate.py <object_id>
 """
 import math
-import os
 import sys
 from datetime import datetime, timezone
 
@@ -18,9 +17,9 @@ from astropy.coordinates import (
     CartesianRepresentation,
 )
 from astropy.time import Time
+from sgp4.api import WGS72, Satrec, jday
 
 from db import get_connection
-from sgp4.api import WGS72, Satrec, jday
 
 
 def get_latest_elements(object_id: int):

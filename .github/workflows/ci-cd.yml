@@ -70,13 +70,13 @@ jobs:
         working-directory: backend
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16-alpine
         env:
           POSTGRES_DB: project_db
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -101,15 +101,15 @@ jobs:
       - name: Wait for PostgreSQL
         run: |
           for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U postgres && break
+            pg_isready -h localhost -p 5433 -U postgres && break
             sleep 1
           done
 
       - name: Initialize database schema
         run: |
-          psql -h localhost -U postgres -d project_db -f db/schema.sql
-          psql -h localhost -U postgres -d project_db -f db/views.sql
-          psql -h localhost -U postgres -d project_db -f db/seed.sql
+          psql -h localhost -p 5433 -U postgres -d project_db -f db/schema.sql
+          psql -h localhost -p 5433 -U postgres -d project_db -f db/views.sql
+          psql -h localhost -p 5433 -U postgres -d project_db -f db/seed.sql
 
       - name: Run backend tests
         run: pytest -m "not integration" --cov=./logic -v

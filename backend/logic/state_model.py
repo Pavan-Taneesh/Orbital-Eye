@@ -7,13 +7,12 @@ Usage (standalone test):
     python logic/state_model.py <object_id>
 """
 
-import os
 import sys
 from datetime import datetime, timezone
 
-import psycopg2
-from db import get_connection
 from propagate import build_satellite, get_latest_elements, propagate
+
+from db import get_connection
 
 SOURCE_NAMES = {
     1: "CelesTrak",

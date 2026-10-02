@@ -8,6 +8,8 @@ The backend API calls are mocked / skipped when the server is unavailable.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from backend.ai import FakeProvider, make_service
 from backend.ai_exploration import (
@@ -198,7 +200,6 @@ class TestErrorFlows:
 
     def test_ai_with_missing_credentials(self):
         """AI provider reports missing credentials."""
-        import os
         from backend.ai import GeminiProvider
 
         # Temporarily unset GOOGLE_API_KEY to simulate missing credentials
