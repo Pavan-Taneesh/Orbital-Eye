@@ -1197,9 +1197,7 @@ function ExplorationSidebar({
   categoryLoading,
   setCategoryLoading,
   categoryObjects,
-  setCategoryObjects,
   categoryTotalCounts,
-  setCategoryTotalCounts,
   loadCatalogueByCategory,
 }: {
   activeCategories: Set<string>
@@ -1223,38 +1221,18 @@ function ExplorationSidebar({
   categoryLoading: Set<number>
   setCategoryLoading: React.Dispatch<React.SetStateAction<Set<number>>>
   categoryObjects: Record<number, SatelliteDef[]>
-  setCategoryObjects: React.Dispatch<React.SetStateAction<Record<number, SatelliteDef[]>>>
   categoryTotalCounts: Record<number, number>
-  setCategoryTotalCounts: React.Dispatch<React.SetStateAction<Record<number, number>>>
   loadCatalogueByCategory: (categoryId: number, page: number) => Promise<void>
 }) {
-  const loadMoreRefs = useRef<Record<number, HTMLDivElement>>({})
-
-  // Initialize category data from catalogue on first load
-  useEffect(() => {
-    if (catalogue.objects.length > 0 && Object.keys(categoryObjects).length === 0) {
-      const byCategory: Record<number, SatelliteDef[]> = {}
-      const counts: Record<number, number> = {}
-      
-      catalogue.objects.forEach(sat => {
-        const catId = sat.backendCategoryId
-        if (!byCategory[catId]) byCategory[catId] = []
-        byCategory[catId].push(sat)
-        counts[catId] = (counts[catId] || 0) + 1
-      })
-      
-      setCategoryObjects(byCategory)
-      setCategoryTotalCounts(counts)
-      setCategoryPages(Object.keys(byCategory).reduce((acc, k) => ({ ...acc, [parseInt(k)]: 0 }), {}))
-    }
-  }, [catalogue.objects, categoryObjects, setCategoryObjects, setCategoryTotalCounts, setCategoryPages])
-
   // Load more objects for a specific category
   const loadMoreForCategory = async (backendCategoryId: number) => {
     if (categoryLoading.has(backendCategoryId)) return
     
-    const currentPage = categoryPages[backendCategoryId] || 0
-    const nextPage = currentPage + 1
+    // If this category hasn't been loaded at all yet, load page 0
+    // categoryPages stores the LAST successfully loaded page number
+    // If category is not in categoryPages, it means page 0 hasn't been loaded
+    const currentPage = categoryPages[backendCategoryId]
+    const nextPage = currentPage === undefined ? 0 : currentPage + 1
     
     setCategoryLoading(prev => new Set(prev).add(backendCategoryId))
     
@@ -1269,29 +1247,6 @@ function ExplorationSidebar({
       })
     }
   }
-
-  // Set up intersection observer for infinite scroll within category
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          // Find which category this load-more belongs to
-          const categoryEl = entry.target.closest('[data-category-id]') as HTMLElement | null
-          if (categoryEl) {
-            const backendCategoryId = parseInt(categoryEl.dataset.categoryId || '0', 10)
-            loadMoreForCategory(backendCategoryId)
-          }
-        }
-      })
-    }, { rootMargin: '100px' })
-    
-    // Observe all current load-more refs
-    Object.values(loadMoreRefs.current).forEach(ref => {
-      if (ref) observer.observe(ref)
-    })
-    
-    return () => observer.disconnect()
-  }, [loadMoreForCategory])
 
   return (
     <div className={`side-panel sidebar-panel ${mobileOpen ? 'is-open' : ''}`}>
@@ -1345,16 +1300,15 @@ function ExplorationSidebar({
                     >
                       <span className="sat-dot" style={{ background: cat.color }} />
                       {sat.name}
+                      <span className="sat-norad" style={{ fontSize: '8px', color: 'rgba(200,218,232,0.5)', marginLeft: '6px', fontFamily: 'Orbitron, sans-serif', letterSpacing: '0.05em' }}>
+                        NORAD {sat.noradId}
+                      </span>
                     </button>
                   ))}
                   {hasMore && (
-                    <div 
-                      ref={(el) => { if (el) loadMoreRefs.current[backendCatId] = el }}
-                      className="load-more-trigger" 
-                      style={{ padding: '8px', textAlign: 'center' }}
-                    >
+                    <div className="load-more-trigger" style={{ padding: '8px', textAlign: 'center' }}>
                       {loading ? (
-                        <span className="loading-indicator" style={{ fontSize: '10px' }}>Loading more…</span>
+                        <span className="loading-indicator" style={{ fontSize: '10px' }}>Loading…</span>
                       ) : (
                         <button
                           className="load-more-btn"
@@ -1372,7 +1326,9 @@ function ExplorationSidebar({
                             width: '100%',
                           }}
                         >
-                          Load more ({totalCount - sats.length} remaining)
+                          {categoryPages[backendCatId] === undefined
+                            ? `Load objects (${totalCount} total)`
+                            : `Load more (${totalCount - sats.length} remaining)`}
                         </button>
                       )}
                     </div>
@@ -1806,6 +1762,29 @@ export default function App() {
           for (const sat of mapped) {
             satelliteCache.set(sat.objectId, { satellite: sat })
           }
+          
+          // Fetch total counts per category for accurate sidebar counts
+          // Using backend's category filter to get total_count for each category
+          try {
+            const categoryCountPromises = CATEGORIES.map(async (cat) => {
+              const catResponse = await api.list({ 
+                limit: 1, 
+                offset: 0, 
+                category: cat.backendCategoryId 
+              })
+              return { backendCategoryId: cat.backendCategoryId, totalCount: catResponse.total_count }
+            })
+            const categoryCounts = await Promise.all(categoryCountPromises)
+            if (!cancelled) {
+              const countsMap: Record<number, number> = {}
+              categoryCounts.forEach(({ backendCategoryId, totalCount }) => {
+                countsMap[backendCategoryId] = totalCount
+              })
+              setCategoryTotalCounts(countsMap)
+            }
+          } catch (err) {
+            console.warn('Failed to load category totals:', err)
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -2171,9 +2150,7 @@ export default function App() {
             categoryLoading={categoryLoading}
             setCategoryLoading={setCategoryLoading}
             categoryObjects={categoryObjects}
-            setCategoryObjects={setCategoryObjects}
             categoryTotalCounts={categoryTotalCounts}
-            setCategoryTotalCounts={setCategoryTotalCounts}
             loadCatalogueByCategory={loadCatalogueByCategory}
           />
 
