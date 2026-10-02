@@ -92,6 +92,15 @@ export function propagateToEcef(satrec: SatRec, date: Date): PropagatedState | n
     return null
   }
 
+  const pos = positionVelocity.position
+  const vel = positionVelocity.velocity
+  if (
+    !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z) ||
+    !Number.isFinite(vel.x) || !Number.isFinite(vel.y) || !Number.isFinite(vel.z)
+  ) {
+    return null
+  }
+
   const gmst = gstime(date)
   const positionEci = positionVelocity.position
   const velocityEci = positionVelocity.velocity
@@ -99,9 +108,20 @@ export function propagateToEcef(satrec: SatRec, date: Date): PropagatedState | n
   const positionEcef = eciToEcf(positionEci, gmst)
   const velocityEcef = eciToEcf(velocityEci, gmst)
 
+  if (
+    !Number.isFinite(positionEcef.x) || !Number.isFinite(positionEcef.y) || !Number.isFinite(positionEcef.z) ||
+    !Number.isFinite(velocityEcef.x) || !Number.isFinite(velocityEcef.y) || !Number.isFinite(velocityEcef.z)
+  ) {
+    return null
+  }
+
   const altitudeKm = Math.sqrt(
     positionEcef.x ** 2 + positionEcef.y ** 2 + positionEcef.z ** 2
   ) - EARTH_RADIUS_KM
+
+  if (!Number.isFinite(altitudeKm)) {
+    return null
+  }
 
   return {
     positionEcef: new THREE.Vector3(positionEcef.x, positionEcef.y, positionEcef.z),

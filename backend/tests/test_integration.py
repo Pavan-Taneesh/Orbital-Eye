@@ -198,19 +198,30 @@ class TestErrorFlows:
 
     def test_ai_with_missing_credentials(self):
         """AI provider reports missing credentials."""
+        import os
         from backend.ai import GeminiProvider
 
-        provider = GeminiProvider(api_key=None)
-        ai_service = make_service("fake")
-        ai_service.provider = provider
+        # Temporarily unset GOOGLE_API_KEY to simulate missing credentials
+        old_key = os.environ.pop("GOOGLE_API_KEY", None)
+        old_gemini_key = os.environ.pop("GEMINI_API_KEY", None)
+        try:
+            provider = GeminiProvider(api_key=None)
+            ai_service = make_service("fake")
+            ai_service.provider = provider
 
-        bridge = AICommandBridge()
-        service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
+            bridge = AICommandBridge()
+            service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
 
-        result = service.explore("Test")
+            result = service.explore("Test")
 
-        assert result.success is False
-        assert result.error_type == "missing_credentials"
+            assert result.success is False
+            assert result.error_type == "missing_credentials"
+        finally:
+            # Restore environment
+            if old_key is not None:
+                os.environ["GOOGLE_API_KEY"] = old_key
+            if old_gemini_key is not None:
+                os.environ["GEMINI_API_KEY"] = old_gemini_key
 
     def test_ai_with_timeout(self):
         """AI request times out."""

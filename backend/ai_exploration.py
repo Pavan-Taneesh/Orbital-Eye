@@ -11,14 +11,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .ai import AIService, make_service
-from .ai.exceptions import (
+from backend.ai import AIService, make_service
+from backend.ai.exceptions import (
     MissingCredentialsError,
     ProviderFailureError,
     ProviderTimeoutError,
 )
-from .application_state import get_app_state
-from .command_system import (
+from backend.application_state import get_app_state
+from backend.command_system import (
     AICommandBridge,
     CommandName,
 )

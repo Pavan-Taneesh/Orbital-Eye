@@ -19,10 +19,8 @@ from astropy.coordinates import (
 )
 from astropy.time import Time
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from sgp4.api import WGS72, Satrec, jday
-
 from db import get_connection
+from sgp4.api import WGS72, Satrec, jday
 
 
 def get_latest_elements(object_id: int):

@@ -90,21 +90,32 @@ class TestAIExplorationService:
 
     def test_explore_missing_credentials(self):
         """Test explore with missing credentials."""
+        import os
         from backend.ai import GeminiProvider
 
-        # Create service with gemini provider but no API key
-        provider = GeminiProvider(api_key=None)
-        ai_service = make_service("fake")  # Use fake as base
-        ai_service.provider = provider
+        # Temporarily unset GOOGLE_API_KEY to simulate missing credentials
+        old_key = os.environ.pop("GOOGLE_API_KEY", None)
+        old_gemini_key = os.environ.pop("GEMINI_API_KEY", None)
+        try:
+            # Create service with gemini provider but no API key
+            provider = GeminiProvider(api_key=None)
+            ai_service = make_service("fake")  # Use fake as base
+            ai_service.provider = provider
 
-        bridge = AICommandBridge()
-        service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
+            bridge = AICommandBridge()
+            service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
 
-        result = service.explore("Test")
+            result = service.explore("Test")
 
-        assert result.success is False
-        assert result.error_type == "missing_credentials"
-        assert "not configured" in result.error.lower()
+            assert result.success is False
+            assert result.error_type == "missing_credentials"
+            assert "not configured" in result.error.lower()
+        finally:
+            # Restore environment
+            if old_key is not None:
+                os.environ["GOOGLE_API_KEY"] = old_key
+            if old_gemini_key is not None:
+                os.environ["GEMINI_API_KEY"] = old_gemini_key
 
     def test_explore_provider_timeout(self):
         """Test explore with provider timeout."""

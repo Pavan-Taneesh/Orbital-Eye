@@ -949,14 +949,14 @@ function CameraRig({
   satellites, 
   selectedSatelliteState, 
   satelliteCache,
-  controlsEnabledRef
+  setControlsEnabled
 }: { 
   phase: IntroPhase; 
   selectedId: string | null; 
   satellites: SatelliteDef[]; 
   selectedSatelliteState: StateResponse | null; 
   satelliteCache: Map<number, { state?: StateResponse }>;
-  controlsEnabledRef: MutableRefObject<boolean>;
+  setControlsEnabled: (enabled: boolean) => void;
 }) {
   const { controls, camera } = useThree((s) => ({ controls: s.controls, camera: s.camera })) as unknown as {
     controls: { target: THREE.Vector3; update: () => void } | null
@@ -1005,7 +1005,7 @@ function CameraRig({
         fromSpherical: current,
         toSpherical: destination,
       }
-      controlsEnabledRef.current = false
+      setControlsEnabled(false)
     } else {
       destination.set(10.5, current.phi, current.theta)
       flightRef.current = {
@@ -1015,9 +1015,9 @@ function CameraRig({
         fromSpherical: current,
         toSpherical: destination,
       }
-      controlsEnabledRef.current = false
+      setControlsEnabled(false)
     }
-  }, [phase, selectedId, controls, camera, satellites, selectedSatelliteState, satelliteCache, controlsEnabledRef])
+  }, [phase, selectedId, controls, camera, satellites, selectedSatelliteState, satelliteCache])
 
   useFrame((_, delta) => {
     if (phase !== 'main' || !controls) return
@@ -1025,7 +1025,7 @@ function CameraRig({
     controls.target.set(0, 0, 0)
     const flight = flightRef.current
     if (!flight?.active) {
-      controlsEnabledRef.current = true
+      setControlsEnabled(true)
       controls.update()
       return
     }
@@ -1052,7 +1052,7 @@ function CameraRig({
       camera.position.setFromSpherical(flight.toSpherical)
       camera.lookAt(0, 0, 0)
       controls.target.set(0, 0, 0)
-      controlsEnabledRef.current = true
+      setControlsEnabled(true)
       controls.update()
     }
   })
@@ -1081,7 +1081,8 @@ function Scene({
   satellites,
   selectedSatelliteState,
   satelliteCache,
-  controlsEnabledRef,
+  controlsEnabled,
+  setControlsEnabled,
 }: {
   phase: IntroPhase
   onEarthReady?: () => void
@@ -1093,7 +1094,8 @@ function Scene({
   satellites: SatelliteDef[]
   selectedSatelliteState: StateResponse | null
   satelliteCache: Map<number, { state?: StateResponse }>
-  controlsEnabledRef: MutableRefObject<boolean>
+  controlsEnabled: boolean
+  setControlsEnabled: (enabled: boolean) => void
 }) {
   return (
     <>
@@ -1120,7 +1122,7 @@ function Scene({
 
       <OrbitControls
         makeDefault
-        enabled={phase === 'main' && controlsEnabledRef.current}
+        enabled={phase === 'main' && controlsEnabled}
         enablePan={false}
         enableDamping
         dampingFactor={0.075}
@@ -1133,7 +1135,7 @@ function Scene({
         onEnd={() => { document.body.style.cursor = 'auto' }}
       />
 
-      <CameraRig phase={phase} selectedId={selectedId} satellites={satellites} selectedSatelliteState={selectedSatelliteState} satelliteCache={satelliteCache} controlsEnabledRef={controlsEnabledRef} />
+      <CameraRig phase={phase} selectedId={selectedId} satellites={satellites} selectedSatelliteState={selectedSatelliteState} satelliteCache={satelliteCache} setControlsEnabled={setControlsEnabled} />
     </>
   )
 }
@@ -1283,12 +1285,13 @@ function ExplorationSidebar({
       })
     }, { rootMargin: '100px' })
     
+    // Observe all current load-more refs
     Object.values(loadMoreRefs.current).forEach(ref => {
       if (ref) observer.observe(ref)
     })
     
     return () => observer.disconnect()
-  }, [loadMoreRefs.current])
+  }, [loadMoreForCategory])
 
   return (
     <div className={`side-panel sidebar-panel ${mobileOpen ? 'is-open' : ''}`}>
@@ -1692,11 +1695,14 @@ export default function App() {
 
   const canEnter = starsReady || earthReady || forceReady
 
+  // Controls enabled state for CameraRig to disable OrbitControls during flight
+  const [controlsEnabled, setControlsEnabled] = useState(true)
+
   // Satellite data from API - initial ~10 rendered in 3D scene
   // This is the ACTIVE RENDER SET - limited to ~15 objects for performance
   const [renderedSatellites, setRenderedSatellites] = useState<SatelliteDef[]>([])
-  const [_satellitesLoading, setSatellitesLoading] = useState(true)
-  const [_satellitesError, setSatellitesError] = useState<string | null>(null)
+  const [, setSatellitesLoading] = useState(true)
+  const [, setSatellitesError] = useState<string | null>(null)
 
   // Maximum satellites in active 3D render set
   const MAX_RENDERED_SATELLITES = 15
@@ -1725,12 +1731,13 @@ export default function App() {
   const [categoryTotalCounts, setCategoryTotalCounts] = useState<Record<number, number>>({})
 
   // Satellite data cache - Map<object_id, SatelliteData>
-  const satelliteCacheRef = useRef<Map<number, {
+  // Using useState with lazy initializer - we mutate the Map in-place and don't trigger re-renders
+  const [satelliteCache] = useState(() => new Map<number, {
     satellite: SatelliteDef;
     state?: StateResponse;
     details?: ObjectDetails;
     media?: MediaResponse;
-  }>>(new Map())
+  }>())
 
   // Load satellite data from API - initial small set (~10) with real position data
   useEffect(() => {
@@ -1746,15 +1753,15 @@ export default function App() {
           // Cache initial satellites and fetch their state/position
           for (const sat of mapped) {
             const objectId = sat.objectId
-            satelliteCacheRef.current.set(objectId, { satellite: sat })
+            satelliteCache.set(objectId, { satellite: sat })
             
             // Fetch real position data for initial satellites
             try {
               const state = await api.state(objectId)
               if (!cancelled) {
-                const cached = satelliteCacheRef.current.get(objectId)
+                const cached = satelliteCache.get(objectId)
                 if (cached) {
-                  satelliteCacheRef.current.set(objectId, { ...cached, state })
+                  satelliteCache.set(objectId, { ...cached, state })
                 }
               }
             } catch (err) {
@@ -1797,7 +1804,7 @@ export default function App() {
           }))
           // Cache catalogue objects
           for (const sat of mapped) {
-            satelliteCacheRef.current.set(sat.objectId, { satellite: sat })
+            satelliteCache.set(sat.objectId, { satellite: sat })
           }
         }
       } catch (err) {
@@ -1827,9 +1834,6 @@ export default function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
-
-  // Controls enabled ref for CameraRig to disable OrbitControls during flight
-  const controlsEnabledRef = useRef(true)
 
   // Selection generation counter for race condition protection
   const selectionGenRef = useRef(0)
@@ -1877,7 +1881,7 @@ export default function App() {
       
       // Cache new objects
       for (const sat of mapped) {
-        satelliteCacheRef.current.set(sat.objectId, { satellite: sat })
+        satelliteCache.set(sat.objectId, { satellite: sat })
       }
     } catch (err) {
       console.error('Failed to load catalogue by category:', err)
@@ -1888,7 +1892,7 @@ export default function App() {
   // Adds to active render set with limit to prevent unbounded growth
   const loadSatelliteOnDemand = async (objectId: number): Promise<SatelliteDef | null> => {
     // Check cache first
-    const cached = satelliteCacheRef.current.get(objectId)
+    const cached = satelliteCache.get(objectId)
     if (cached) {
       // Ensure cached satellite is in render set
       setRenderedSatellites(prev => {
@@ -1917,7 +1921,7 @@ export default function App() {
       const satellite = mapObjectSummaryToSatellite(summary)
       
       // Cache it
-      satelliteCacheRef.current.set(objectId, { satellite })
+      satelliteCache.set(objectId, { satellite })
       
       // Add to render set with max limit
       setRenderedSatellites(prev => {
@@ -1932,9 +1936,9 @@ export default function App() {
       // Fetch real position data
       try {
         const state = await api.state(objectId)
-        const cached = satelliteCacheRef.current.get(objectId)
+        const cached = satelliteCache.get(objectId)
         if (cached) {
-          satelliteCacheRef.current.set(objectId, { ...cached, state })
+          satelliteCache.set(objectId, { ...cached, state })
         }
         // Trigger re-render to show satellite at real position
         setRenderedSatellites(prev => [...prev])
@@ -1976,9 +1980,9 @@ export default function App() {
       setSelectedSatelliteMedia(media)
       
       // Update cache with state/details/media
-      const cached = satelliteCacheRef.current.get(objectId)
+      const cached = satelliteCache.get(objectId)
       if (cached) {
-        satelliteCacheRef.current.set(objectId, {
+        satelliteCache.set(objectId, {
           ...cached,
           state,
           details,
@@ -2007,7 +2011,7 @@ export default function App() {
     if (!sat) {
       // Try cache (for satellites not yet in render set)
       const objId = parseInt(id.replace('obj-', ''), 10)
-      const cached = satelliteCacheRef.current.get(objId)
+      const cached = satelliteCache.get(objId)
       if (cached) sat = cached.satellite
     }
     if (sat && !activeCategories.has(sat.categoryId)) {
@@ -2121,8 +2125,9 @@ export default function App() {
             positionsRef={positionsRef}
             satellites={renderedSatellites}
             selectedSatelliteState={selectedSatelliteState}
-            satelliteCache={satelliteCacheRef.current}
-            controlsEnabledRef={controlsEnabledRef}
+            satelliteCache={satelliteCache}
+            controlsEnabled={controlsEnabled}
+            setControlsEnabled={setControlsEnabled}
           />
         </Canvas>
       </div>
