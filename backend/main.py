@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from schemas import (
+    BulkStateResponse,
     DiagnosticsResponse,
     HealthResponse,
     MediaResponse,
@@ -39,6 +40,7 @@ from services.object_service import (
 from services.object_service import (
     search_objects as search_objects_svc,
 )
+from services.state_service import bulk_state_service as bulk_state_service_svc
 from services.state_service import state_service as state_service_svc
 
 app = FastAPI(title="Space-website API", version="0.1.0")
@@ -135,6 +137,38 @@ def list_objects(
         PaginatedResponse with ObjectSummary results
     """
     return list_objects_svc(
+        category=category,
+        limit=limit,
+        offset=offset,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Bulk orbital state (must come before /objects/{object_id})
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/v1/objects/states",
+    response_model=BulkStateResponse,
+)
+def get_bulk_states(
+    category: int | None = None,
+    limit: int = 250,
+    offset: int = 0,
+):
+    """GET /api/v1/objects/states
+
+    Bulk orbital state retrieval for a category.
+
+    Args:
+        category: Optional filter by category_id (1-7)
+        limit: Max 250 results per page (default: 250)
+        offset: Pagination offset (default: 0)
+
+    Returns:
+        BulkStateResponse with StateResponse results
+    """
+    return bulk_state_service_svc(
         category=category,
         limit=limit,
         offset=offset,

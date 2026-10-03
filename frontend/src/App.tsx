@@ -1,16 +1,16 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { FormEvent, MutableRefObject } from 'react'
 import * as THREE from 'three'
 import { api, type ObjectSummary, type StateResponse, type ObjectDetails, type MediaResponse, type AICommandResult } from './lib/types'
-import { 
-  buildSatrecFromElements, 
-  propagateToEcef, 
-  generateOrbitPath, 
+import {
+  buildSatrecFromElements,
+  propagateToEcef,
+  generateOrbitPath,
   getOrbitalPeriodMinutes,
   fetchOrbitalElements,
-  type OrbitalElements 
+  type OrbitalElements
 } from './lib/orbital'
 
 const EARTH_RADIUS = 2.2
@@ -458,16 +458,16 @@ function getSatelliteWorldPosition(
   currentSelectedId: string | null
 ): THREE.Vector3 | null {
   const objectId = sat.objectId
-  
+
   if (selectedSatelliteState?.position && sat.id === currentSelectedId) {
     return ecefToWorldPosition(selectedSatelliteState.position)
   }
-  
+
   const cached = satelliteCache.get(objectId)
   if (cached?.state?.position) {
     return ecefToWorldPosition(cached.state.position)
   }
-  
+
   return null
 }
 
@@ -484,16 +484,16 @@ async function loadOrbitData(objectId: number): Promise<SatelliteOrbitData | nul
   if (orbitDataCache.has(objectId)) {
     return orbitDataCache.get(objectId) ?? null
   }
-  
+
   const elements = await fetchOrbitalElements(objectId)
   if (!elements) return null
-  
+
   try {
     const satrec = buildSatrecFromElements(elements)
     const now = new Date()
     const orbitPath = generateOrbitPath(satrec, now, 360)
     const periodMinutes = getOrbitalPeriodMinutes(satrec)
-    
+
     const data: SatelliteOrbitData = { satrec, orbitPath, periodMinutes, elements }
     orbitDataCache.set(objectId, data)
     return data
@@ -510,22 +510,34 @@ function SelectedOrbit({
   color: string
 }) {
   const [orbitPath, setOrbitPath] = useState<THREE.Vector3[] | null>(null)
-  const [loading, setLoading] = useState(false)
-  const loadedRef = useRef(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (loadedRef.current || loading) return
-    loadedRef.current = true
-    setLoading(true)
+    // Cancel any in-flight request
+    if (abortRef.current) {
+      abortRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    // Clear orbit path when objectId changes (before loading new one)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrbitPath((prev) => prev === null ? null : null)
     
     loadOrbitData(objectId).then((data) => {
+      if (controller.signal.aborted) return
       if (data) {
         setOrbitPath(data.orbitPath)
       }
-      setLoading(false)
     }).catch(() => {
-      setLoading(false)
+      if (controller.signal.aborted) return
     })
+
+    return () => {
+      if (abortRef.current) {
+        abortRef.current.abort()
+      }
+    }
   }, [objectId])
 
   const positionAttribute = useMemo(() => {
@@ -613,6 +625,8 @@ function SatellitesLayer({
   satellites,
   selectedSatelliteState,
   satelliteCache,
+  categoryObjects,
+  categoryBulkPositions,
 }: {
   activeCategories: Set<string>
   selectedId: string | null
@@ -622,6 +636,8 @@ function SatellitesLayer({
   satellites: SatelliteDef[]
   selectedSatelliteState: StateResponse | null
   satelliteCache: Map<number, { state?: StateResponse }>
+  categoryObjects: Record<number, SatelliteDef[]>
+  categoryBulkPositions: Record<number, { loadedCount: number; totalCount: number; hasMore: boolean; loading: boolean; page: number; objectIds: number[] }>
 }) {
   const pointsRef = useRef<THREE.Points>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
@@ -632,27 +648,63 @@ function SatellitesLayer({
   const simTimeRef = useRef<Date>(new Date())
 
   // Filter satellites to only those with real position data and active category
+  // Includes both the active render set AND all category objects with valid positions from bulk loading
   const { visibleSatellites, positions, colors, positionsById, indexToSatId } = useMemo(() => {
     const visibleSatellites: SatelliteDef[] = []
     const indexToSatId: string[] = []
     const positionsList: number[] = []
     const colorsList: number[] = []
     const positionsById = new Map<string, THREE.Vector3>()
+    const seenSatIds = new Set<string>()
 
-    satellites.forEach((sat) => {
+    // Helper to add a satellite if it has a valid position and active category
+    const addSatellite = (sat: SatelliteDef) => {
       if (!activeCategories.has(sat.categoryId)) return
-      
+      if (seenSatIds.has(sat.id)) return
+
       const pos = getSatelliteWorldPosition(sat, selectedSatelliteState, satelliteCache, selectedId)
       if (!pos) return
-      
+
+      seenSatIds.add(sat.id)
       visibleSatellites.push(sat)
       indexToSatId.push(sat.id)
-      
+
       positionsList.push(pos.x, pos.y, pos.z)
       positionsById.set(sat.id, pos)
 
       const c = new THREE.Color(categoryColor(sat.categoryId))
       colorsList.push(c.r, c.g, c.b)
+    }
+
+    // First add satellites from the active render set (selected, hovered, etc.)
+    satellites.forEach(addSatellite)
+
+    // Then add all satellites from category objects that have bulk positions loaded
+    activeCategories.forEach((catId) => {
+      const backendCatId = CATEGORIES.find(c => c.id === catId)?.backendCategoryId
+      if (!backendCatId) return
+
+      const catObjects = categoryObjects[backendCatId] || []
+      catObjects.forEach(addSatellite)
+    })
+
+    // Then add all satellites from category bulk positions (GPU-rendered points)
+    // These are objects that have real position data from the bulk state API
+    activeCategories.forEach((catId) => {
+      const backendCatId = CATEGORIES.find(c => c.id === catId)?.backendCategoryId
+      if (!backendCatId) return
+
+      const bulk = categoryBulkPositions[backendCatId]
+      if (!bulk || bulk.objectIds.length === 0) return
+
+      bulk.objectIds.forEach((objectId) => {
+        const cached = satelliteCache.get(objectId) as { satellite: SatelliteDef; state?: StateResponse; details?: ObjectDetails; media?: MediaResponse } | undefined
+        if (!cached) return
+        if (!cached.satellite) return
+        if (!cached.state?.position) return
+
+        addSatellite(cached.satellite)
+      })
     })
 
     return {
@@ -662,7 +714,7 @@ function SatellitesLayer({
       positionsById,
       indexToSatId,
     }
-  }, [satellites, selectedId, selectedSatelliteState, satelliteCache, activeCategories])
+  }, [satellites, selectedId, selectedSatelliteState, satelliteCache, activeCategories, categoryObjects, categoryBulkPositions])
 
   useEffect(() => {
     positionsRef.current.clear()
@@ -702,7 +754,7 @@ function SatellitesLayer({
       setSelectedSatPosition(null)
       return
     }
-    
+
     const sat = satellites.find((s) => s.id === selectedId)
     if (!sat) {
       setSelectedSatPosition(null)
@@ -720,7 +772,7 @@ function SatellitesLayer({
 
     // Advance simulation time
     simTimeRef.current = new Date(simTimeRef.current.getTime() + delta * 1000)
-    
+
     const state = propagateToEcef(orbitData.satrec, simTimeRef.current)
     if (state) {
       setSelectedSatPosition(state.positionThree)
@@ -943,18 +995,18 @@ function SatellitesLayer({
    CAMERA RIG — handles "fly to satellite" + live tracking
    ============================================================ */
 
-function CameraRig({ 
-  phase, 
-  selectedId, 
-  satellites, 
-  selectedSatelliteState, 
+function CameraRig({
+  phase,
+  selectedId,
+  satellites,
+  selectedSatelliteState,
   satelliteCache,
   setControlsEnabled
-}: { 
-  phase: IntroPhase; 
-  selectedId: string | null; 
-  satellites: SatelliteDef[]; 
-  selectedSatelliteState: StateResponse | null; 
+}: {
+  phase: IntroPhase;
+  selectedId: string | null;
+  satellites: SatelliteDef[];
+  selectedSatelliteState: StateResponse | null;
   satelliteCache: Map<number, { state?: StateResponse }>;
   setControlsEnabled: (enabled: boolean) => void;
 }) {
@@ -986,7 +1038,7 @@ function CameraRig({
       // Use authoritative position function - only fly if we have real position
       const satPosition = getSatelliteWorldPosition(sat, selectedSatelliteState, satelliteCache, selectedId)
       if (!satPosition) return // Wait for real position data
-      
+
       const direction = satPosition.clone().normalize()
       const destinationPosition = direction.multiplyScalar(
         Math.max(satPosition.length() + 1.05, EARTH_RADIUS + 1.6),
@@ -1017,7 +1069,7 @@ function CameraRig({
       }
       setControlsEnabled(false)
     }
-  }, [phase, selectedId, controls, camera, satellites, selectedSatelliteState, satelliteCache])
+  }, [phase, selectedId, controls, camera, satellites, selectedSatelliteState, satelliteCache, setControlsEnabled])
 
   useFrame((_, delta) => {
     if (phase !== 'main' || !controls) return
@@ -1081,6 +1133,8 @@ function Scene({
   satellites,
   selectedSatelliteState,
   satelliteCache,
+  categoryObjects,
+  categoryBulkPositions,
   controlsEnabled,
   setControlsEnabled,
 }: {
@@ -1094,6 +1148,8 @@ function Scene({
   satellites: SatelliteDef[]
   selectedSatelliteState: StateResponse | null
   satelliteCache: Map<number, { state?: StateResponse }>
+  categoryObjects: Record<number, SatelliteDef[]>
+  categoryBulkPositions: Record<number, { loadedCount: number; totalCount: number; hasMore: boolean; loading: boolean; page: number; objectIds: number[] }>
   controlsEnabled: boolean
   setControlsEnabled: (enabled: boolean) => void
 }) {
@@ -1117,6 +1173,8 @@ function Scene({
           satellites={satellites}
           selectedSatelliteState={selectedSatelliteState}
           satelliteCache={satelliteCache}
+          categoryObjects={categoryObjects}
+          categoryBulkPositions={categoryBulkPositions}
         />
       )}
 
@@ -1227,15 +1285,15 @@ function ExplorationSidebar({
   // Load more objects for a specific category
   const loadMoreForCategory = async (backendCategoryId: number) => {
     if (categoryLoading.has(backendCategoryId)) return
-    
+
     // If this category hasn't been loaded at all yet, load page 0
     // categoryPages stores the LAST successfully loaded page number
     // If category is not in categoryPages, it means page 0 hasn't been loaded
     const currentPage = categoryPages[backendCategoryId]
     const nextPage = currentPage === undefined ? 0 : currentPage + 1
-    
+
     setCategoryLoading(prev => new Set(prev).add(backendCategoryId))
-    
+
     try {
       await loadCatalogueByCategory(backendCategoryId, nextPage)
       setCategoryPages(prev => ({ ...prev, [backendCategoryId]: nextPage }))
@@ -1461,28 +1519,88 @@ function SatelliteSearch({
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchRequestRef = useRef<AbortController | null>(null)
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    const q = query.trim()
-    if (!q) return
+  const performSearch = async (q: string) => {
+    if (!q.trim()) {
+      setSearchResults([])
+      setNotFound(false)
+      return
+    }
+
+    // Cancel previous in-flight request
+    if (searchRequestRef.current) {
+      searchRequestRef.current.abort()
+    }
+    const controller = new AbortController()
+    searchRequestRef.current = controller
 
     setSearchLoading(true)
     setSearchError(null)
     setSearchResults([])
 
     try {
-      const data = await api.search({ q })
+      const data = await api.search({ q, signal: controller.signal })
+      // Check if request was aborted
+      if (controller.signal.aborted) return
       setSearchResults(data.results)
-      setNotFound(false)
+      setNotFound(data.results.length === 0)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      if (controller.signal.aborted) return
       setSearchError(err instanceof Error ? err.message : 'Search failed')
       setSearchResults([])
       setNotFound(true)
     } finally {
-      setSearchLoading(false)
+      if (!controller.signal.aborted) {
+        setSearchLoading(false)
+      }
     }
   }
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value)
+    setNotFound(false)
+
+    // Clear previous debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+
+    // Debounce search by 250ms
+    if (value.trim()) {
+      debounceRef.current = setTimeout(() => {
+        performSearch(value)
+      }, 250)
+    } else {
+      setSearchResults([])
+    }
+  }
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    const q = query.trim()
+    if (!q) return
+
+    // Clear debounce on explicit submit
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+    await performSearch(q)
+  }
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+      if (searchRequestRef.current) {
+        searchRequestRef.current.abort()
+      }
+    }
+  }, [])
 
   const selectedSat = selectedId ? satellites.find((s) => s.id === selectedId) : null
 
@@ -1491,8 +1609,7 @@ function SatelliteSearch({
       <input
         value={query}
         onChange={(e) => {
-          setQuery(e.target.value)
-          setNotFound(false)
+          handleQueryChange(e.target.value)
         }}
         onKeyDown={(e) => {
           // Keep OrbitControls / the Canvas from consuming Enter while the
@@ -1553,19 +1670,19 @@ function SatelliteSearch({
   )
 }
 
-function SatelliteInfoCard({ 
-  selectedId, 
-  onClear, 
-  satellites, 
-  details, 
+function SatelliteInfoCard({
+  selectedId,
+  onClear,
+  satellites,
+  details,
   media,
   loading,
   error,
   onRetry,
   selectedSatelliteState
-}: { 
-  selectedId: string | null; 
-  onClear: () => void; 
+}: {
+  selectedId: string | null;
+  onClear: () => void;
   satellites: SatelliteDef[];
   details: ObjectDetails | null;
   media: MediaResponse | null;
@@ -1585,6 +1702,9 @@ function SatelliteInfoCard({
   const metadata = details?.metadata ?? {}
   const mediaItems = media?.media ?? []
 
+  // Get cached state for immediate display
+  const cachedState = selectedSatelliteState
+
   return (
     <aside className="satellite-info-card satellite-info-fixed" aria-live="polite">
       <div className="info-card-header">
@@ -1595,7 +1715,6 @@ function SatelliteInfoCard({
         <span className="info-card-name">{name}</span>
         <button className="info-card-close" onClick={onClear} aria-label="Close satellite details">×</button>
       </div>
-      {loading && <div className="info-card-row loading-indicator">Loading satellite data…</div>}
       {error && (
         <div className="info-card-row error-message">
           {error}
@@ -1622,11 +1741,22 @@ function SatelliteInfoCard({
           </div>
         </div>
       )}
-      {selectedSatelliteState?.altitude !== null && selectedSatelliteState?.altitude !== undefined && (
-        <div className="info-card-row"><span>Altitude</span><span>{selectedSatelliteState.altitude.toFixed(1)} km</span></div>
+      {/* Show cached state immediately, loading indicator only for missing data */}
+      {cachedState?.altitude !== null && cachedState?.altitude !== undefined ? (
+        <div className="info-card-row"><span>Altitude</span><span>{cachedState.altitude.toFixed(1)} km</span></div>
+      ) : loading && (
+        <div className="info-card-row"><span>Altitude</span><span className="loading-indicator">Loading…</span></div>
       )}
-      {selectedSatelliteState?.epoch && (
-        <div className="info-card-row"><span>Epoch</span><span>{new Date(selectedSatelliteState.epoch).toISOString()}</span></div>
+      {cachedState?.epoch ? (
+        <div className="info-card-row"><span>Epoch</span><span>{new Date(cachedState.epoch).toISOString()}</span></div>
+      ) : loading && (
+        <div className="info-card-row"><span>Epoch</span><span className="loading-indicator">Loading…</span></div>
+      )}
+      {cachedState?.source && (
+        <div className="info-card-row"><span>Source</span><span>{cachedState.source}</span></div>
+      )}
+      {cachedState?.status && (
+        <div className="info-card-row"><span>Status</span><span style={{ textTransform: 'capitalize' }}>{cachedState.status}</span></div>
       )}
       <div className="info-card-focus">SATELLITE + ORBIT HIGHLIGHTED</div>
     </aside>
@@ -1660,7 +1790,9 @@ export default function App() {
   const [, setSatellitesLoading] = useState(true)
   const [, setSatellitesError] = useState<string | null>(null)
 
-  // Maximum satellites in active 3D render set
+  // MAX_RENDERED_SATELLITES applies ONLY to the on-demand expensive render set
+  // (selected satellite highlight, orbit geometry, detail meshes).
+  // Category-wide GPU Points rendering is driven by bulk state and is NOT subject to this limit.
   const MAX_RENDERED_SATELLITES = 15
 
   // Complete Exploration Catalogue - paginated access to all backend objects
@@ -1686,6 +1818,19 @@ export default function App() {
   const [categoryObjects, setCategoryObjects] = useState<Record<number, SatelliteDef[]>>({})
   const [categoryTotalCounts, setCategoryTotalCounts] = useState<Record<number, number>>({})
 
+  // Category bulk position state - tracks loading of real positions for category points
+  const [categoryBulkPositions, setCategoryBulkPositions] = useState<Record<number, {
+    loadedCount: number
+    totalCount: number
+    hasMore: boolean
+    loading: boolean
+    page: number
+    objectIds: number[]
+  }>>({})
+
+  // In-flight request tracking for deduplication
+  const bulkStateRequestsRef = useRef<Map<string, AbortController>>(new Map())
+
   // Satellite data cache - Map<object_id, SatelliteData>
   // Using useState with lazy initializer - we mutate the Map in-place and don't trigger re-renders
   const [satelliteCache] = useState(() => new Map<number, {
@@ -1710,7 +1855,7 @@ export default function App() {
           for (const sat of mapped) {
             const objectId = sat.objectId
             satelliteCache.set(objectId, { satellite: sat })
-            
+
             // Fetch real position data for initial satellites
             try {
               const state = await api.state(objectId)
@@ -1740,7 +1885,7 @@ export default function App() {
     }
     loadSatellites()
     return () => { cancelled = true }
-  }, [])
+  }, [satelliteCache])
 
   // Load Exploration Catalogue - complete backend catalogue with pagination
   useEffect(() => {
@@ -1762,15 +1907,15 @@ export default function App() {
           for (const sat of mapped) {
             satelliteCache.set(sat.objectId, { satellite: sat })
           }
-          
+
           // Fetch total counts per category for accurate sidebar counts
           // Using backend's category filter to get total_count for each category
           try {
             const categoryCountPromises = CATEGORIES.map(async (cat) => {
-              const catResponse = await api.list({ 
-                limit: 1, 
-                offset: 0, 
-                category: cat.backendCategoryId 
+              const catResponse = await api.list({
+                limit: 1,
+                offset: 0,
+                category: cat.backendCategoryId
               })
               return { backendCategoryId: cat.backendCategoryId, totalCount: catResponse.total_count }
             })
@@ -1795,7 +1940,7 @@ export default function App() {
     }
     loadCatalogue()
     return () => { cancelled = true }
-  }, [])
+  }, [satelliteCache])
 
   // Satellite / UI state
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
@@ -1824,8 +1969,17 @@ export default function App() {
   const toggleCategory = (id: string) => {
     setActiveCategories((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+        // Stop bulk loading when category is disabled
+        const cat = CATEGORIES.find(c => c.id === id)
+        if (cat) stopCategoryBulkLoading(cat.backendCategoryId)
+      } else {
+        next.add(id)
+        // Start bulk loading when category is enabled
+        const cat = CATEGORIES.find(c => c.id === id)
+        if (cat) startCategoryBulkLoading(cat.backendCategoryId)
+      }
       return next
     })
   }
@@ -1836,13 +1990,13 @@ export default function App() {
   const loadCatalogueByCategory = async (backendCategoryId: number, page: number) => {
     try {
       const offset = page * catalogue.pageSize
-      const response = await api.list({ 
-        limit: catalogue.pageSize, 
+      const response = await api.list({
+        limit: catalogue.pageSize,
         offset,
         category: backendCategoryId,
       })
       const mapped = response.results.map(mapObjectSummaryToSatellite)
-      
+
       setCategoryObjects(prev => {
         const existing = prev[backendCategoryId] || []
         const existingIds = new Set(existing.map(s => s.id))
@@ -1852,12 +2006,12 @@ export default function App() {
           [backendCategoryId]: [...existing, ...newObjects],
         }
       })
-      
+
       setCategoryTotalCounts(prev => ({
         ...prev,
         [backendCategoryId]: response.total_count,
       }))
-      
+
       // Cache new objects
       for (const sat of mapped) {
         satelliteCache.set(sat.objectId, { satellite: sat })
@@ -1867,20 +2021,146 @@ export default function App() {
     }
   }
 
+  // Progressive bulk state loading for a category
+  const loadBulkPositionsForCategory = async (backendCategoryId: number) => {
+    const currentBulk = categoryBulkPositions[backendCategoryId]
+    const currentPage = currentBulk?.page ?? 0
+    const hasMore = currentBulk?.hasMore ?? true
+    const isLoading = currentBulk?.loading ?? false
+
+    if (!hasMore || isLoading) return
+
+    // Check if already fetching this page
+    const requestKey = `bulk-${backendCategoryId}-${currentPage}`
+    if (bulkStateRequestsRef.current.has(requestKey)) return
+
+    const controller = new AbortController()
+    bulkStateRequestsRef.current.set(requestKey, controller)
+
+    try {
+      setCategoryBulkPositions(prev => ({
+        ...prev,
+        [backendCategoryId]: {
+          ...(prev[backendCategoryId] || { loadedCount: 0, totalCount: 0, hasMore: true, loading: false, page: currentPage, objectIds: [] }),
+          loading: true,
+        }
+      }))
+
+      const response = await api.bulkState({
+        category: backendCategoryId,
+        limit: 250,
+        offset: currentPage * 250,
+      })
+
+      if (controller.signal.aborted) return
+
+      // Update satellite cache with position data
+      // Create lightweight SatelliteDefs directly from bulk state results
+      // using known category info - no individual api.list calls
+      const frontendCategoryId = BACKEND_TO_FRONTEND_CATEGORY[backendCategoryId] ?? 'scientific'
+
+      for (const state of response.results) {
+        const objectId = state.object_id
+        const cached = satelliteCache.get(objectId)
+
+        // Create lightweight SatelliteDef if not in cache
+        if (!cached) {
+          const satellite: SatelliteDef = {
+            id: `obj-${objectId}`,
+            name: `Object ${objectId}`, // Temporary name, will be replaced when details fetched
+            categoryId: frontendCategoryId,
+            backendCategoryId,
+            noradId: 0, // Will be updated when real data fetched
+            objectId,
+          }
+          satelliteCache.set(objectId, { satellite, state })
+        } else {
+          // Update existing cache with real state
+          satelliteCache.set(objectId, { ...cached, state })
+        }
+      }
+
+      const objectIds = response.results.map(r => r.object_id)
+
+      setCategoryBulkPositions(prev => ({
+        ...prev,
+        [backendCategoryId]: {
+          loadedCount: (prev[backendCategoryId]?.loadedCount || 0) + response.count,
+          totalCount: response.total_count,
+          hasMore: response.has_more,
+          loading: false,
+          page: currentPage + 1,
+          objectIds: [...(prev[backendCategoryId]?.objectIds || []), ...objectIds],
+        }
+      }))
+
+      // Trigger re-render to show new points
+      setRenderedSatellites(prev => [...prev])
+
+      // Auto-load next page if more available (progressive loading)
+      if (response.has_more) {
+        // Small delay to prevent blocking main thread
+        setTimeout(() => {
+          loadBulkPositionsForCategory(backendCategoryId)
+        }, 50)
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      console.error('Failed to load bulk positions for category:', err)
+      setCategoryBulkPositions(prev => ({
+        ...prev,
+        [backendCategoryId]: {
+          ...(prev[backendCategoryId] || { loadedCount: 0, totalCount: 0, hasMore: false, loading: false, page: currentPage, objectIds: [] }),
+          loading: false,
+        }
+      }))
+    } finally {
+      bulkStateRequestsRef.current.delete(requestKey)
+    }
+  }
+
+  // Load initial bulk positions when category is enabled
+  const startCategoryBulkLoading = (backendCategoryId: number) => {
+    const bulk = categoryBulkPositions[backendCategoryId]
+    if (!bulk || bulk.loadedCount === 0) {
+      loadBulkPositionsForCategory(backendCategoryId)
+    }
+  }
+
+  // Stop bulk loading for a category (when disabled)
+  const stopCategoryBulkLoading = (backendCategoryId: number) => {
+    const requestKey = `bulk-${backendCategoryId}-${categoryBulkPositions[backendCategoryId]?.page ?? 0}`
+    const controller = bulkStateRequestsRef.current.get(requestKey)
+    if (controller) {
+      controller.abort()
+      bulkStateRequestsRef.current.delete(requestKey)
+    }
+  }
+
+  // Start bulk loading for initially active categories
+  useEffect(() => {
+    activeCategories.forEach((catId) => {
+      const cat = CATEGORIES.find(c => c.id === catId)
+      if (cat) {
+        startCategoryBulkLoading(cat.backendCategoryId)
+      }
+    })
+  }, [activeCategories]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // On-demand satellite loading with caching - fetches real position data
-  // Adds to active render set with limit to prevent unbounded growth
-  const loadSatelliteOnDemand = async (objectId: number): Promise<SatelliteDef | null> => {
+  // Adds to active render set with limit to prevent unbounded growth (for expensive representations only)
+  // Category-wide GPU Points rendering is driven by bulk state and is NOT subject to this limit
+  const loadSatelliteOnDemand = async (objectId: number, isSelected: boolean = false): Promise<SatelliteDef | null> => {
     // Check cache first
     const cached = satelliteCache.get(objectId)
     if (cached) {
       // Ensure cached satellite is in render set
       setRenderedSatellites(prev => {
         if (prev.some(s => s.id === cached.satellite.id)) return prev
-        // Add to render set, enforcing max limit
+        // Add to render set, enforcing max limit for non-selected
         const next = [...prev, cached.satellite]
-        if (next.length > MAX_RENDERED_SATELLITES) {
+        if (!isSelected && next.length > MAX_RENDERED_SATELLITES) {
           // Remove oldest non-selected satellite
-          // (In practice, selected satellite is handled by goToSatellite)
           return next.slice(-MAX_RENDERED_SATELLITES)
         }
         return next
@@ -1898,20 +2178,20 @@ export default function App() {
         category_id: response.category_id ?? 1,
       }
       const satellite = mapObjectSummaryToSatellite(summary)
-      
+
       // Cache it
       satelliteCache.set(objectId, { satellite })
-      
-      // Add to render set with max limit
+
+      // Add to render set with max limit (skip limit for selected)
       setRenderedSatellites(prev => {
         if (prev.some(s => s.id === satellite.id)) return prev
         const next = [...prev, satellite]
-        if (next.length > MAX_RENDERED_SATELLITES) {
+        if (!isSelected && next.length > MAX_RENDERED_SATELLITES) {
           return next.slice(-MAX_RENDERED_SATELLITES)
         }
         return next
       })
-      
+
       // Fetch real position data
       try {
         const state = await api.state(objectId)
@@ -1924,7 +2204,7 @@ export default function App() {
       } catch (err) {
         console.warn(`Failed to load state for satellite ${objectId}:`, err)
       }
-      
+
       return satellite
     } catch (err) {
       console.error('Failed to load satellite on demand:', err)
@@ -1935,12 +2215,18 @@ export default function App() {
   const fetchSatelliteData = async (objectId: number) => {
     // Increment generation to invalidate stale responses
     const currentGen = ++selectionGenRef.current
-    
+
+    // First, show cached data immediately if available
+    const cached = satelliteCache.get(objectId)
+    if (cached) {
+      if (cached.state) setSelectedSatelliteState(cached.state)
+      if (cached.details) setSelectedSatelliteDetails(cached.details)
+      if (cached.media) setSelectedSatelliteMedia(cached.media)
+    }
+
     setSatelliteDetailsLoading(true)
     setSatelliteDetailsError(null)
-    setSelectedSatelliteState(null)
-    setSelectedSatelliteDetails(null)
-    setSelectedSatelliteMedia(null)
+    // Don't clear cached state - keep it visible while fetching fresh data
 
     try {
       const [state, details, media] = await Promise.all([
@@ -1948,16 +2234,16 @@ export default function App() {
         api.get(objectId),
         api.media(objectId),
       ])
-      
+
       // Race condition check: only apply if still the current selection
       if (currentGen !== selectionGenRef.current) {
         return // Stale response, discard
       }
-      
+
       setSelectedSatelliteState(state)
       setSelectedSatelliteDetails(details)
       setSelectedSatelliteMedia(media)
-      
+
       // Update cache with state/details/media
       const cached = satelliteCache.get(objectId)
       if (cached) {
@@ -1974,9 +2260,7 @@ export default function App() {
       }
       const message = err instanceof Error ? err.message : 'Failed to load satellite data'
       setSatelliteDetailsError(message)
-      setSelectedSatelliteState(null)
-      setSelectedSatelliteDetails(null)
-      setSelectedSatelliteMedia(null)
+      // Don't clear state on error - keep cached data visible
     } finally {
       if (currentGen === selectionGenRef.current) {
         setSatelliteDetailsLoading(false)
@@ -1985,24 +2269,52 @@ export default function App() {
   }
 
   const goToSatellite = (id: string) => {
-    // Check render set first, then cache
+    // Parse object_id from obj-{object_id}
+    const objectId = parseInt(id.replace('obj-', ''), 10)
+    if (isNaN(objectId)) return
+
+    // Check render set first, then cache, then category objects
     let sat = renderedSatellites.find((s) => s.id === id)
     if (!sat) {
-      // Try cache (for satellites not yet in render set)
-      const objId = parseInt(id.replace('obj-', ''), 10)
-      const cached = satelliteCache.get(objId)
+      const cached = satelliteCache.get(objectId)
       if (cached) sat = cached.satellite
     }
-    if (sat && !activeCategories.has(sat.categoryId)) {
-      setActiveCategories((prev) => new Set(prev).add(sat.categoryId))
+    if (!sat) {
+      // Check category objects
+      activeCategories.forEach((catId) => {
+        const backendCatId = CATEGORIES.find(c => c.id === catId)?.backendCategoryId
+        if (!backendCatId) return
+        const catObjects = categoryObjects[backendCatId] || []
+        const found = catObjects.find((s) => s.id === id)
+        if (found) sat = found
+      })
     }
-    setSelectedId(id)
+
+    // If still missing, load on-demand
+    if (!sat) {
+      loadSatelliteOnDemand(objectId, true).then((loadedSat) => {
+        if (loadedSat) {
+          setSelectedId(loadedSat.id)
+          fetchSatelliteData(objectId)
+        }
+      })
+      return
+    }
+
+    // sat is guaranteed to exist here (early return above)
+    const satDef = sat!
+    if (!activeCategories.has(satDef.categoryId)) {
+      setActiveCategories((prev) => new Set(prev).add(satDef.categoryId))
+    }
+
+    // Use canonical obj-{object_id} format
+    const canonicalId = `obj-${objectId}`
+    setSelectedId(canonicalId)
+
     // Fetch real orbital state for this satellite
-    const objId = sat ? parseInt(sat.id.replace('obj-', ''), 10) : null
-    if (objId) {
-      // Ensure satellite is loaded (on-demand if needed)
-      loadSatelliteOnDemand(objId).then(() => {
-        fetchSatelliteData(objId)
+    if (objectId) {
+      loadSatelliteOnDemand(objectId, true).then(() => {
+        fetchSatelliteData(objectId)
       })
     }
     // Selection is intentionally non-zooming: keep the Earth framing stable.
@@ -2067,6 +2379,14 @@ export default function App() {
     setPhase('main')
   }
 
+  const handleEarthReady = useCallback(() => {
+    setEarthReady(true)
+  }, [])
+
+  const handleStarsReady = useCallback(() => {
+    setStarsReady(true)
+  }, [])
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') {
@@ -2076,7 +2396,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  })
+  }, [])
 
   return (
     <main className={`earth-experience ${phase === 'main' ? 'is-main' : ''}`}>
@@ -2094,10 +2414,10 @@ export default function App() {
             if (phase === 'main') clearSelection()
           }}
         >
-          <Scene
+<Scene
             phase={phase}
-            onEarthReady={() => setEarthReady(true)}
-            onStarsReady={() => setStarsReady(true)}
+            onEarthReady={handleEarthReady}
+            onStarsReady={handleStarsReady}
             activeCategories={activeCategories}
             selectedId={selectedId}
             onSelectSatellite={goToSatellite}
@@ -2105,6 +2425,8 @@ export default function App() {
             satellites={renderedSatellites}
             selectedSatelliteState={selectedSatelliteState}
             satelliteCache={satelliteCache}
+            categoryObjects={categoryObjects}
+            categoryBulkPositions={categoryBulkPositions}
             controlsEnabled={controlsEnabled}
             setControlsEnabled={setControlsEnabled}
           />
@@ -2155,9 +2477,9 @@ export default function App() {
           />
 
           <AIPanel mobileOpen={aiOpen} setMobileOpen={setAiOpen} satelliteInfoOpen={Boolean(selectedId)} onExecuteCommand={executeAICommand} />
-          <SatelliteInfoCard 
-            selectedId={selectedId} 
-            onClear={clearSelection} 
+          <SatelliteInfoCard
+            selectedId={selectedId}
+            onClear={clearSelection}
             satellites={renderedSatellites}
             details={selectedSatelliteDetails}
             media={selectedSatelliteMedia}

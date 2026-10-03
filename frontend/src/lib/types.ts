@@ -46,6 +46,15 @@ export interface StateResponse {
   status: 'fresh' | 'stale' | 'error' | 'unavailable';
 }
 
+export interface BulkStateResponse {
+  results: StateResponse[];
+  count: number;
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
 export interface StalenessInfo {
   age_hours: number;
   threshold_hours: number;
@@ -99,7 +108,7 @@ export interface SearchParams {
   category?: number;
   limit?: number;
   offset?: number;
-  [key: string]: string | number | undefined;
+  signal?: AbortSignal;
 }
 
 export interface ListParams {
@@ -117,6 +126,15 @@ export const API_TIMEOUT_MS = 10000;
 async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  // If an external signal is provided, link it to our controller
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort()
+    } else {
+      options.signal.addEventListener('abort', () => controller.abort())
+    }
+  }
 
   try {
     const response = await fetch(url, {
@@ -175,8 +193,9 @@ export const api = {
   },
 
   search: async (params: SearchParams = {}): Promise<PaginatedResponse> => {
-    const query = buildQuery(params as Record<string, unknown>);
-    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/search?${query}`);
+    const { signal, ...searchParams } = params;
+    const query = buildQuery(searchParams as Record<string, unknown>);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/search?${query}`, { signal });
     return handleResponse<PaginatedResponse>(response);
   },
 
@@ -194,6 +213,12 @@ export const api = {
   state: async (objectId: number): Promise<StateResponse> => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}/state`);
     return handleResponse<StateResponse>(response);
+  },
+
+  bulkState: async (params: { category?: number; limit?: number; offset?: number } = {}): Promise<BulkStateResponse> => {
+    const query = buildQuery(params as Record<string, unknown>);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/states?${query}`);
+    return handleResponse<BulkStateResponse>(response);
   },
 
   diagnostics: async (objectId: number): Promise<DiagnosticsResponse> => {
