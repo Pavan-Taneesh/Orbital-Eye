@@ -1887,6 +1887,35 @@ export default function App() {
     return () => { cancelled = true }
   }, [satelliteCache])
 
+  // Load category totals separately to avoid nested try-catch complexity
+  useEffect(() => {
+    let cancelled = false
+    async function loadCategoryTotals() {
+      try {
+        const categoryCountPromises = CATEGORIES.map(async (cat) => {
+          const catResponse = await api.list({
+            limit: 1,
+            offset: 0,
+            category: cat.backendCategoryId
+          })
+          return { backendCategoryId: cat.backendCategoryId, totalCount: catResponse.total_count }
+        })
+        const categoryCounts = await Promise.all(categoryCountPromises)
+        if (!cancelled) {
+          const countsMap: Record<number, number> = {}
+          categoryCounts.forEach(({ backendCategoryId, totalCount }) => {
+            countsMap[backendCategoryId] = totalCount
+          })
+          setCategoryTotalCounts(countsMap)
+        }
+      } catch (err) {
+        console.warn('Failed to load category totals:', err)
+      }
+    }
+    loadCategoryTotals()
+    return () => { cancelled = true }
+  }, [satelliteCache])
+
   // Load Exploration Catalogue - complete backend catalogue with pagination
   useEffect(() => {
     let cancelled = false
@@ -1907,29 +1936,6 @@ export default function App() {
           for (const sat of mapped) {
             satelliteCache.set(sat.objectId, { satellite: sat })
           }
-
-          // Fetch total counts per category for accurate sidebar counts
-          // Using backend's category filter to get total_count for each category
-          try {
-            const categoryCountPromises = CATEGORIES.map(async (cat) => {
-              const catResponse = await api.list({
-                limit: 1,
-                offset: 0,
-                category: cat.backendCategoryId
-              })
-              return { backendCategoryId: cat.backendCategoryId, totalCount: catResponse.total_count }
-            })
-            const categoryCounts = await Promise.all(categoryCountPromises)
-            if (!cancelled) {
-              const countsMap: Record<number, number> = {}
-              categoryCounts.forEach(({ backendCategoryId, totalCount }) => {
-                countsMap[backendCategoryId] = totalCount
-              })
-              setCategoryTotalCounts(countsMap)
-            }
-          } catch (err) {
-            console.warn('Failed to load category totals:', err)
-          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -1944,7 +1950,7 @@ export default function App() {
 
   // Satellite / UI state
   const [activeCategories, setActiveCategories] = useState<Set<string>>(
-    () => new Set(CATEGORIES.map((c) => c.id)),
+    () => new Set(['stations']),
   )
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const positionsRef = useRef<Map<string, THREE.Vector3>>(new Map())
