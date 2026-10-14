@@ -6,6 +6,7 @@ Run with: python -m uvicorn main:app --reload --port 8000
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import psycopg2
 from dotenv import load_dotenv
@@ -108,7 +109,7 @@ def search_objects(
     cur = conn.cursor()
 
     base_where = "WHERE o.name ILIKE %s"
-    params = [f"%{q}%"]
+    params: list[Any] = [f"%{q}%"]
     if category is not None:
         base_where += " AND o.category_id = %s"
         params.append(category)
