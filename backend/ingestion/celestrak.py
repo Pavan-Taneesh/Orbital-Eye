@@ -21,6 +21,14 @@ cur = conn.cursor()
 
 SOURCE_ID = 1  # CelesTrak
 
+def get_object_type(name):
+    n = name.upper()
+    if n.endswith("DEB"):
+        return "debris"
+    if "R/B" in n:
+        return "rocket_body"
+    return "payload"
+
 # category_id : (category name, celestrak group)
 GROUPS = {
     1: "stations",     # Space Stations
@@ -44,11 +52,11 @@ for category_id, group in GROUPS.items():
         epoch = sat["EPOCH"]
 
         cur.execute("""
-            INSERT INTO objects (name, norad_id, cospar_id, category_id)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO objects (name, norad_id, cospar_id, category_id, object_type)
+            VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (norad_id) DO NOTHING
             RETURNING object_id;
-        """, (name, norad_id, cospar_id, category_id))
+        """, (name, norad_id, cospar_id, category_id, get_object_type(name)))
 
         row = cur.fetchone()
         if row:
@@ -107,10 +115,10 @@ for obj in rocket_bodies:
         continue
 
     cur.execute("""
-        INSERT INTO objects (name, norad_id, cospar_id, category_id)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO objects (name, norad_id, cospar_id, category_id, object_type)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (norad_id) DO NOTHING;
-    """, (name, norad_id, cospar_id, ROCKET_BODY_CATEGORY_ID))
+    """, (name, norad_id, cospar_id, ROCKET_BODY_CATEGORY_ID, get_object_type(name)))
     rb_count += 1
 
 print(f"rocket bodies (SATCAT, no orbit data): {rb_count} objects processed")
@@ -133,11 +141,11 @@ for group in DEBRIS_GROUPS:
         epoch = sat["EPOCH"]
 
         cur.execute("""
-            INSERT INTO objects (name, norad_id, cospar_id, category_id)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO objects (name, norad_id, cospar_id, category_id, object_type)
+            VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (norad_id) DO NOTHING
             RETURNING object_id;
-        """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID))
+        """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID, get_object_type(name)))
 
         cur.execute("""
             INSERT INTO objects (name, norad_id, cospar_id, category_id)
