@@ -1,11 +1,6 @@
-import psycopg2
+from db import get_connection
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="project_db",
-    user="postgres",
-    password="pavan@2805"
-)
+conn = get_connection()
 
 cur = conn.cursor()
 cur.execute("SELECT version();")

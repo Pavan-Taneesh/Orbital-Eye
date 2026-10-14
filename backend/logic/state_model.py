@@ -10,10 +10,9 @@ Usage (standalone test):
 import sys
 from datetime import datetime, timezone
 
-import psycopg2
+from propagate import build_satellite, get_latest_elements, propagate
 
-from propagate import get_latest_elements, build_satellite, propagate
-
+from db import get_connection
 
 SOURCE_NAMES = {
     1: "CelesTrak",
@@ -27,12 +26,7 @@ STALE_THRESHOLD_HOURS = 24
 
 def get_source_and_freshness(object_id: int):
     """Pull source_id and fetched_at for the latest orbital_elements row."""
-    conn = psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="pavan@2805",
-    )
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
@@ -52,7 +46,7 @@ def get_source_and_freshness(object_id: int):
     return row
 
 
-def get_state(object_id: int, when: datetime = None):
+def get_state(object_id: int, when: datetime | None = None):
     """
     Build the Contract C state dict for one object.
     `when` defaults to now (UTC) if not given.

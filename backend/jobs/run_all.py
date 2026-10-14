@@ -1,6 +1,6 @@
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Scripts to run in order — ingestion first, resolver last
 SCRIPTS = [
@@ -14,7 +14,7 @@ SCRIPTS = [
 LOG_FILE = "jobs/run_log.txt"
 
 def log(message):
-    timestamp = datetime.now().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     line = f"[{timestamp}] {message}"
     print(line)
     with open(LOG_FILE, "a") as f:
@@ -24,7 +24,7 @@ log("=== Starting full ingestion run ===")
 
 for script in SCRIPTS:
     log(f"Running {script}...")
-    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, script], capture_output=True, text=True, check=False)
 
     if result.returncode == 0:
         log(f"{script} SUCCESS")

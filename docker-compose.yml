@@ -1,0 +1,81 @@
+﻿services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: space-website-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME:-project_db}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-your_password_here}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/db/views.sql:/docker-entrypoint-initdb.d/02-views.sql
+      - ./backend/db/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-project_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: space-website-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-project_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-your_password_here}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:3000}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-your_gemini_api_key}
+      - SPACETRACK_USER=${SPACETRACK_USER:-your_space_track_username}
+      - SPACETRACK_PASS=${SPACETRACK_PASS:-your_space_track_password}
+      - DISCOS_TOKEN=${DISCOS_TOKEN:-your_discos_api_token}
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    image: node:20-alpine
+    container_name: space-website-frontend
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -x /app/node_modules/.bin/vite ]; then
+          npm ci
+        fi
+        npm run dev -- --host 0.0.0.0 --port 3000
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+
+volumes:
+  postgres_data:
+  frontend_node_modules:

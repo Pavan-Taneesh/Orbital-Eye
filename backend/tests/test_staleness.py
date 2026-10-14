@@ -5,28 +5,19 @@ correctly classify fresh vs stale data.
 """
 
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
-
-import psycopg2
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from state_model import STALE_THRESHOLD_HOURS, get_state
 
-from state_model import get_state, STALE_THRESHOLD_HOURS
-
-
-def connect():
-    return psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="pavan@2805",
-    )
+from db import get_connection
 
 
 def test_view_is_stale_matches_threshold():
     """latest_orbital_elements.is_stale should be true iff fetched_at is older than 24hrs."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         "SELECT object_id, fetched_at, is_stale FROM latest_orbital_elements;"
@@ -48,7 +39,7 @@ def test_view_is_stale_matches_threshold():
 
 def test_state_model_status_reflects_staleness():
     """state_model.get_state()'s status should be 'stale' if age_hours exceeds threshold, else 'fresh'."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT object_id FROM orbital_elements LIMIT 1;")
     object_id = cur.fetchone()[0]

@@ -3,27 +3,56 @@ FastAPI app entrypoint (P2-M9).
 Run with: python -m uvicorn main:app --reload --port 8000
 """
 
+import os
 import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "logic"))
 
 from fastapi import FastAPI, HTTPException
-import psycopg2
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-from state_model import get_state
-from diagnostics import get_diagnostics
+from schemas import (
+    BulkStateResponse,
+    DiagnosticsResponse,
+    HealthResponse,
+    MediaResponse,
+    ObjectDetails,
+    PaginatedResponse,
+    StateResponse,
+)
+from services.diagnostics_service import diagnostics_service as diagnostics_service_svc
+from services.health_service import health_service as health_service_svc
+from services.object_service import (
+    get_object as get_object_svc,
+)
+from services.object_service import (
+    get_object_media as get_object_media_svc,
+)
+from services.object_service import (
+    list_objects as list_objects_svc,
+)
+from services.object_service import (
+    search_objects as search_objects_svc,
+)
+from services.state_service import bulk_state_service as bulk_state_service_svc
+from services.state_service import state_service as state_service_svc
 
 app = FastAPI(title="Space-website API", version="0.1.0")
 
-from fastapi.middleware.cors import CORSMiddleware
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: restrict to actual frontend origin once known
+    allow_origins=[
+        os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 import os
@@ -40,19 +69,41 @@ def connect():
         password=os.getenv("DB_PASSWORD"),
     )
 
+class AIExploreRequest(BaseModel):
+    request: str
 
-@app.get("/api/v1/health")
+
+class AIExploreResponse(BaseModel):
+    success: bool
+    command: str | None = None
+    result: dict | None = None
+    ai_response: str | None = None
+    error: str | None = None
+    error_type: str | None = None
+    latency_ms: float = 0.0
+    tokens_used: dict = {}
+
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/health", response_model=HealthResponse)
 def health_check():
-    return {"status": "ok"}
+    """GET /api/v1/health
 
+    Returns:
+        HealthResponse with status "ok"
+    """
+    return health_service_svc()
 
 @app.get("/api/v1/objects/search")
 def search_objects(q: str = "", category: int = None, object_type: str = None, limit: int = 20, offset: int = 0):
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
 
-    conn = connect()
-    cur = conn.cursor()
+# ---------------------------------------------------------------------------
+# Object search / listing
+# ---------------------------------------------------------------------------
 
     base_where = "WHERE o.name ILIKE %s"
     params = [f"%{q}%"]
@@ -166,50 +217,221 @@ def get_object(object_id: int):
         """,
         (object_id,),
     )
-    row = cur.fetchone()
-    if row is None:
-        cur.close()
-        conn.close()
-        raise HTTPException(status_code=404, detail="object not found")
 
-    obj_id, name, category, norad_id = row
 
-    cur.execute(
-        "SELECT field_name, field_value FROM resolved_metadata WHERE object_id = %s;",
-        (object_id,),
+@app.get("/api/v1/objects", response_model=PaginatedResponse)
+def list_objects(
+    category: int | None = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """GET /api/v1/objects
+
+    Application-level orchestration delegated to
+    object_service.list_objects.
+
+    Args:
+        category: Optional filter by category_id (1-7)
+        limit: Max 100 results per page (default 20)
+        offset: Pagination offset (default 0)
+
+    Returns:
+        PaginatedResponse with ObjectSummary results
+    """
+    return list_objects_svc(
+        category=category,
+        limit=limit,
+        offset=offset,
     )
-    metadata = {field_name: field_value for field_name, field_value in cur.fetchall()}
 
-    cur.execute(
-        "SELECT url, media_type, source_id FROM media WHERE object_id = %s;",
-        (object_id,),
+
+# ---------------------------------------------------------------------------
+# Bulk orbital state (must come before /objects/{object_id})
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/v1/objects/states",
+    response_model=BulkStateResponse,
+)
+def get_bulk_states(
+    category: int | None = None,
+    limit: int = 250,
+    offset: int = 0,
+):
+    """GET /api/v1/objects/states
+
+    Bulk orbital state retrieval for a category.
+
+    Args:
+        category: Optional filter by category_id (1-7)
+        limit: Max 250 results per page (default: 250)
+        offset: Pagination offset (default: 0)
+
+    Returns:
+        BulkStateResponse with StateResponse results
+    """
+    return bulk_state_service_svc(
+        category=category,
+        limit=limit,
+        offset=offset,
     )
-    media = [{"url": u, "media_type": mt, "source_id": sid} for u, mt, sid in cur.fetchall()]
-
-    cur.close()
-    conn.close()
-
-    return {
-        "object_id": obj_id,
-        "name": name,
-        "category": category,
-        "norad_id": norad_id,
-        "metadata": metadata,
-        "media": media,
-    }
 
 
-@app.get("/api/v1/objects/{object_id}/state")
+# ---------------------------------------------------------------------------
+# Object detail
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/objects/{object_id}", response_model=ObjectDetails)
+def get_object(object_id: int):
+    """GET /api/v1/objects/{object_id}
+
+    Application-level orchestration delegated to
+    object_service.get_object.
+
+    Args:
+        object_id: Positive object identifier
+
+    Returns:
+        ObjectDetails with full object information
+
+    Raises:
+        HTTPException 400: If object_id is not positive
+        HTTPException 404: If object not found
+    """
+    try:
+        return get_object_svc(object_id=object_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Orbital state
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/v1/objects/{object_id}/state",
+    response_model=StateResponse,
+)
 def get_object_state(object_id: int):
-    state = get_state(object_id)
-    if state["status"] == "unavailable":
-        raise HTTPException(status_code=404, detail="no orbital data for this object")
-    return state
+    """GET /api/v1/objects/{object_id}/state
+
+    Application-level orchestration delegated to
+    state_service.state_service.
+
+    Args:
+        object_id: Positive object identifier
+
+    Returns:
+        StateResponse with orbital state (Contract C)
+
+    Raises:
+        HTTPException 404: If no orbital data for this object
+    """
+    return state_service_svc(object_id=object_id)
 
 
-@app.get("/api/v1/objects/{object_id}/diagnostics")
+# ---------------------------------------------------------------------------
+# Diagnostics
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/v1/objects/{object_id}/diagnostics",
+    response_model=DiagnosticsResponse,
+)
 def get_object_diagnostics(object_id: int):
-    diag = get_diagnostics(object_id)
-    if diag["raw_latest_row"] is None:
-        raise HTTPException(status_code=404, detail="no orbital data for this object")
-    return diag
+    """GET /api/v1/objects/{object_id}/diagnostics
+
+    Application-level orchestration delegated to
+    diagnostics_service.diagnostics_service.
+
+    Args:
+        object_id: Positive object identifier
+
+    Returns:
+        DiagnosticsResponse with dev-only debug values
+
+    Raises:
+        HTTPException 404: If no orbital data for this object
+    """
+    return diagnostics_service_svc(object_id=object_id)
+
+
+# ---------------------------------------------------------------------------
+# Media
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/v1/objects/{object_id}/media",
+    response_model=MediaResponse,
+)
+def get_object_media(object_id: int):
+    """GET /api/v1/objects/{object_id}/media
+
+    Application-level orchestration delegated to
+    object_service.get_object_media.
+
+    Args:
+        object_id: Positive object identifier
+
+    Returns:
+        MediaResponse with media attachments for the object
+
+    Raises:
+        HTTPException 400: If object_id is not positive
+    """
+    try:
+        return get_object_media_svc(object_id=object_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
+# AI Exploration
+# ---------------------------------------------------------------------------
+
+@app.post("/api/v1/ai/explore", response_model=AIExploreResponse)
+def ai_explore(req: AIExploreRequest):
+    """POST /api/v1/ai/explore
+
+    Accepts a natural language request and processes it through the AI
+    exploration pipeline (AI provider → validation → command execution).
+
+    Args:
+        req: AIExploreRequest with natural language "request" field
+
+    Returns:
+        AIExploreResponse with command execution result
+    """
+    # Use fake provider by default; can be overridden via env var
+    import os
+
+    from ai_exploration import AIExplorationService, make_service
+    from client import APIClient
+    from command_system import AICommandBridge, CommandExecutor
+    provider_name = os.getenv("AI_PROVIDER", "fake")
+    ai_service = make_service(provider_name)
+
+    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    api_client = APIClient(base_url=base_url)
+    executor = CommandExecutor(api_client=api_client)
+    bridge = AICommandBridge(executor=executor)
+    service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
+
+    result = service.explore(req.request)
+
+    return AIExploreResponse(
+        success=result.success,
+        command=result.command,
+        result=result.result,
+        ai_response=result.ai_response,
+        error=result.error,
+        error_type=result.error_type,
+        latency_ms=result.latency_ms,
+        tokens_used=result.tokens_used,
+    )

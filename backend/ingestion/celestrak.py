@@ -1,11 +1,21 @@
-import requests
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
+
+import os
+
 import psycopg2
+import requests
 
 conn = psycopg2.connect(
-    host="localhost",
-    dbname="project_db",
-    user="postgres",
-    password="pavan@2805"
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432"),
+    dbname=os.getenv("DB_NAME", "project_db"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
 )
 cur = conn.cursor()
 
@@ -32,7 +42,7 @@ total_inserted = 0
 
 for category_id, group in GROUPS.items():
     url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=json"
-    response = requests.get(url)
+    response = requests.get(url, timeout=30)
     data = response.json()
 
     for sat in data:
@@ -53,7 +63,11 @@ for category_id, group in GROUPS.items():
             object_id = row[0]
         else:
             cur.execute("SELECT object_id FROM objects WHERE norad_id = %s", (norad_id,))
-            object_id = cur.fetchone()[0]
+            row2 = cur.fetchone()
+            if row2:
+                object_id = row2[0]
+            else:
+                continue
 
         cur.execute("""
             INSERT INTO orbital_elements (
@@ -80,7 +94,7 @@ ROCKET_BODY_CATEGORY_ID = 6
 # Rocket bodies = name contains "R/B" (per CelesTrak SATCAT definition),
 # also sometimes "AKM"/"PKM", excluding "DEB".
 satcat_url = "https://celestrak.org/satcat/records.php?NAME=R/B&FORMAT=json"
-response = requests.get(satcat_url)
+response = requests.get(satcat_url, timeout=30)
 
 if response.status_code != 200 or not response.text.strip():
     print(f"Rocket bodies fetch failed: status {response.status_code}, body: {response.text[:200]}")
@@ -117,7 +131,7 @@ DEBRIS_GROUPS = ["cosmos-1408-debris", "iridium-33-debris", "cosmos-2251-debris"
 debris_count = 0
 for group in DEBRIS_GROUPS:
     url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=json"
-    response = requests.get(url)
+    response = requests.get(url, timeout=30)
     data = response.json()
 
     for sat in data:
@@ -133,12 +147,23 @@ for group in DEBRIS_GROUPS:
             RETURNING object_id;
         """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID, get_object_type(name)))
 
+        cur.execute("""
+            INSERT INTO objects (name, norad_id, cospar_id, category_id)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (norad_id) DO NOTHING
+            RETURNING object_id;
+        """, (name, norad_id, cospar_id, DEBRIS_CATEGORY_ID))
+
         row = cur.fetchone()
         if row:
             object_id = row[0]
         else:
             cur.execute("SELECT object_id FROM objects WHERE norad_id = %s", (norad_id,))
-            object_id = cur.fetchone()[0]
+            row2 = cur.fetchone()
+            if row2:
+                object_id = row2[0]
+            else:
+                continue
 
         cur.execute("""
             INSERT INTO orbital_elements (
