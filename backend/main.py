@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,9 +38,6 @@ from services.object_service import (
 from services.object_service import (
     list_objects as list_objects_svc,
 )
-from services.object_service import (
-    search_objects as search_objects_svc,
-)
 from services.state_service import bulk_state_service as bulk_state_service_svc
 from services.state_service import state_service as state_service_svc
 
@@ -54,11 +52,6 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Accept"],
 )
-
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 def connect():
@@ -96,14 +89,23 @@ def health_check():
     """
     return health_service_svc()
 
-@app.get("/api/v1/objects/search")
-def search_objects(q: str = "", category: int = None, object_type: str = None, limit: int = 20, offset: int = 0):
-    limit = max(1, min(limit, 100))
-    offset = max(0, offset)
-
 # ---------------------------------------------------------------------------
 # Object search / listing
 # ---------------------------------------------------------------------------
+
+@app.get("/api/v1/objects/search")
+def search_objects(
+    q: str = "",
+    category: int | None = None,
+    object_type: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    conn = connect()
+    cur = conn.cursor()
 
     base_where = "WHERE o.name ILIKE %s"
     params = [f"%{q}%"]
@@ -147,76 +149,6 @@ def search_objects(q: str = "", category: int = None, object_type: str = None, l
         "offset": offset,
         "has_more": offset + len(results) < total_count,
     }
-
-@app.get("/api/v1/objects")
-def list_objects(category: int = None, object_type: str = None, limit: int = 20, offset: int = 0):
-    limit = max(1, min(limit, 100))
-    offset = max(0, offset)
-
-    conn = connect()
-    cur = conn.cursor()
-
-    conditions = []
-    params = []
-    if category is not None:
-        conditions.append("category_id = %s")
-        params.append(category)
-    if object_type is not None:
-        conditions.append("object_type = %s")
-        params.append(object_type)
-    base_where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-
-    cur.execute(f"SELECT COUNT(*) FROM objects {base_where};", params)
-    total_count = cur.fetchone()[0]
-
-    query = f"""
-        SELECT object_id, name, norad_id, category_id, object_type
-        FROM objects
-        {base_where}
-        ORDER BY object_id
-        LIMIT %s OFFSET %s;
-    """
-    cur.execute(query, params + [limit, offset])
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    results = [
-        {
-            "object_id": r[0],
-            "name": r[1],
-            "norad_id": r[2],
-            "category_id": r[3],
-            "object_type": r[4],
-        }
-        for r in rows
-    ]
-    return {
-        "results": results,
-        "count": len(results),
-        "total_count": total_count,
-        "limit": limit,
-        "offset": offset,
-        "has_more": offset + len(results) < total_count,
-    }
-
-
-@app.get("/api/v1/objects/{object_id}")
-def get_object(object_id: int):
-    if object_id < 1:
-        raise HTTPException(status_code=400, detail="object_id must be positive")
-    conn = connect()
-    ...
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT o.object_id, o.name, c.name AS category, o.norad_id
-        FROM objects o
-        LEFT JOIN categories c ON o.category_id = c.category_id
-        WHERE o.object_id = %s;
-        """,
-        (object_id,),
-    )
 
 
 @app.get("/api/v1/objects", response_model=PaginatedResponse)
