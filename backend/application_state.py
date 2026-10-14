@@ -14,7 +14,7 @@ Visual state includes:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -146,7 +146,7 @@ class AIStatus:
         self.state = AIState.PROCESSING
         self.provider = provider
         self.model = model
-        self.last_request = datetime.now(timezone.utc)
+        self.last_request = datetime.now(UTC)
         self.request_count += 1
 
     def record_success(self, response: str, usage: dict[str, int] | None = None):

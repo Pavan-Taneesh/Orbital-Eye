@@ -5,7 +5,7 @@ correctly classify fresh vs stale data.
 """
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
@@ -26,10 +26,10 @@ def test_view_is_stale_matches_threshold():
     cur.close()
     conn.close()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mismatches = []
     for object_id, fetched_at, is_stale in rows:
-        fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+        fetched_at = fetched_at.replace(tzinfo=UTC)
         expected_stale = (now - fetched_at) > timedelta(hours=24)
         if expected_stale != is_stale:
             mismatches.append((object_id, fetched_at, is_stale, expected_stale))

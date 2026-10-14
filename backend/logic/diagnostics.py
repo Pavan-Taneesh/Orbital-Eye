@@ -9,7 +9,7 @@ Usage (standalone test):
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from propagate import build_satellite, get_latest_elements
@@ -70,7 +70,7 @@ def get_ingestion_history(object_id: int):
 def get_sgp4_error_code(object_id: int, when: datetime | None = None):
     """Run SGP4 directly and return raw error code (0 = success)."""
     if when is None:
-        when = datetime.now(timezone.utc)
+        when = datetime.now(UTC)
 
     row = get_latest_elements(object_id)
     sat = build_satellite(row)
@@ -94,8 +94,8 @@ def get_diagnostics(object_id: int):
             "ingestion_history": [],
         }
 
-    now = datetime.now(timezone.utc)
-    fetched_at = raw_row["fetched_at"].replace(tzinfo=timezone.utc)
+    now = datetime.now(UTC)
+    fetched_at = raw_row["fetched_at"].replace(tzinfo=UTC)
     age_hours = (now - fetched_at).total_seconds() / 3600.0
 
     sgp4_error_code = get_sgp4_error_code(object_id, now)

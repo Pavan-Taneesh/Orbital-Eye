@@ -8,7 +8,7 @@ Usage (standalone test):
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from propagate import build_satellite, get_latest_elements, propagate
 
@@ -52,7 +52,7 @@ def get_state(object_id: int, when: datetime | None = None):
     `when` defaults to now (UTC) if not given.
     """
     if when is None:
-        when = datetime.now(timezone.utc)
+        when = datetime.now(UTC)
 
     source_id, fetched_at = get_source_and_freshness(object_id)
 
@@ -80,7 +80,7 @@ def get_state(object_id: int, when: datetime | None = None):
         position, velocity, altitude = None, None, None
         propagation_ok = False
 
-    age_hours = (when - fetched_at.replace(tzinfo=timezone.utc)).total_seconds() / 3600.0
+    age_hours = (when - fetched_at.replace(tzinfo=UTC)).total_seconds() / 3600.0
 
     if not propagation_ok:
         status = "error"

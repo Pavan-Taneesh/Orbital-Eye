@@ -1,6 +1,6 @@
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # Scripts to run in order — ingestion first, resolver last
 SCRIPTS = [
@@ -14,7 +14,7 @@ SCRIPTS = [
 LOG_FILE = "jobs/run_log.txt"
 
 def log(message):
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     line = f"[{timestamp}] {message}"
     print(line)
     with open(LOG_FILE, "a") as f:

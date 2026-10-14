@@ -7,7 +7,7 @@ Usage (standalone test):
 """
 import math
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from astropy import units as u
 from astropy.coordinates import (
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     row = get_latest_elements(object_id)
     sat = build_satellite(row)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     position, velocity, altitude_km = propagate(sat, now)
 
     print(f"object_id: {object_id}")
