@@ -26,12 +26,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 def connect():
     return psycopg2.connect(
-        host="localhost",
-        dbname="project_db",
-        user="postgres",
-        password="pavan@2805",
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
     )
 
 
@@ -41,7 +47,7 @@ def health_check():
 
 
 @app.get("/api/v1/objects/search")
-def search_objects(q: str = "", category: int = None, limit: int = 20, offset: int = 0):
+def search_objects(q: str = "", category: int = None, object_type: str = None, limit: int = 20, offset: int = 0):
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
 
@@ -53,13 +59,15 @@ def search_objects(q: str = "", category: int = None, limit: int = 20, offset: i
     if category is not None:
         base_where += " AND o.category_id = %s"
         params.append(category)
+    if object_type is not None:
+        base_where += " AND o.object_type = %s"
+        params.append(object_type)
 
-    # total count (for has_more / pagination metadata)
     cur.execute(f"SELECT COUNT(*) FROM objects o {base_where};", params)
     total_count = cur.fetchone()[0]
 
     query = f"""
-        SELECT o.object_id, o.name, o.norad_id, o.category_id
+        SELECT o.object_id, o.name, o.norad_id, o.category_id, o.object_type
         FROM objects o
         {base_where}
         ORDER BY o.object_id
@@ -71,7 +79,13 @@ def search_objects(q: str = "", category: int = None, limit: int = 20, offset: i
     conn.close()
 
     results = [
-        {"object_id": r[0], "name": r[1], "norad_id": r[2], "category_id": r[3]}
+        {
+            "object_id": r[0],
+            "name": r[1],
+            "norad_id": r[2],
+            "category_id": r[3],
+            "object_type": r[4],
+        }
         for r in rows
     ]
     return {
@@ -83,26 +97,29 @@ def search_objects(q: str = "", category: int = None, limit: int = 20, offset: i
         "has_more": offset + len(results) < total_count,
     }
 
-
 @app.get("/api/v1/objects")
-def list_objects(category: int = None, limit: int = 20, offset: int = 0):
+def list_objects(category: int = None, object_type: str = None, limit: int = 20, offset: int = 0):
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
 
     conn = connect()
     cur = conn.cursor()
 
-    base_where = ""
+    conditions = []
     params = []
     if category is not None:
-        base_where = "WHERE category_id = %s"
+        conditions.append("category_id = %s")
         params.append(category)
+    if object_type is not None:
+        conditions.append("object_type = %s")
+        params.append(object_type)
+    base_where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
     cur.execute(f"SELECT COUNT(*) FROM objects {base_where};", params)
     total_count = cur.fetchone()[0]
 
     query = f"""
-        SELECT object_id, name, norad_id, category_id
+        SELECT object_id, name, norad_id, category_id, object_type
         FROM objects
         {base_where}
         ORDER BY object_id
@@ -114,7 +131,13 @@ def list_objects(category: int = None, limit: int = 20, offset: int = 0):
     conn.close()
 
     results = [
-        {"object_id": r[0], "name": r[1], "norad_id": r[2], "category_id": r[3]}
+        {
+            "object_id": r[0],
+            "name": r[1],
+            "norad_id": r[2],
+            "category_id": r[3],
+            "object_type": r[4],
+        }
         for r in rows
     ]
     return {

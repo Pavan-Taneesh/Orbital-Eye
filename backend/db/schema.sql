@@ -26,6 +26,8 @@ CREATE TABLE objects (
     norad_id      INTEGER UNIQUE,        -- primary matching key
     cospar_id     TEXT UNIQUE,           -- e.g. '1998-067A', secondary match key
     category_id   INTEGER REFERENCES categories(category_id),
+    object_type   TEXT,
+    created_at    TIMESTAMP DEFAULT NOW(),
     created_at    TIMESTAMP DEFAULT NOW(),
     updated_at    TIMESTAMP DEFAULT NOW()
 );
