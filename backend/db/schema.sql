@@ -28,7 +28,6 @@ CREATE TABLE objects (
     category_id   INTEGER REFERENCES categories(category_id),
     object_type   TEXT,
     created_at    TIMESTAMP DEFAULT NOW(),
-    created_at    TIMESTAMP DEFAULT NOW(),
     updated_at    TIMESTAMP DEFAULT NOW()
 );
 
