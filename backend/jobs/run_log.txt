@@ -2,12 +2,12 @@
 [2026-08-13T23:28:40.457493] Running ingestion/celestrak.py...
 [2026-08-13T23:29:09.398686] ingestion/celestrak.py SUCCESS
 [2026-08-13T23:29:09.399172] Running ingestion/satnogs.py...
-[2026-08-13T23:29:09.485849] ingestion/satnogs.py FAILED — File "C:\Users\Administrator\Space-website\backend\ingestion\satnogs.py", line 65
+[2026-08-13T23:29:09.485849] ingestion/satnogs.py FAILED ï¿½ File "C:\Users\Administrator\Space-website\backend\ingestion\satnogs.py", line 65
     if field_value and str(field_value).strip().lower() != "none":
     ^^
 IndentationError: expected an indented block after 'for' statement on line 64
 [2026-08-13T23:29:09.487280] Running ingestion/spacetrack.py...
-[2026-08-13T23:29:09.754766] ingestion/spacetrack.py FAILED — Set SPACETRACK_USER and SPACETRACK_PASS env vars first.
+[2026-08-13T23:29:09.754766] ingestion/spacetrack.py FAILED ï¿½ Set SPACETRACK_USER and SPACETRACK_PASS env vars first.
 [2026-08-13T23:29:09.756317] Running ingestion/discos.py...
 [2026-08-13T23:38:14.196862] === Starting full ingestion run ===
 [2026-08-13T23:38:14.197359] Running ingestion/celestrak.py...
@@ -15,7 +15,7 @@ IndentationError: expected an indented block after 'for' statement on line 64
 [2026-08-13T23:38:42.733570] Running ingestion/satnogs.py...
 [2026-08-13T23:38:47.714769] ingestion/satnogs.py SUCCESS
 [2026-08-13T23:38:47.715218] Running ingestion/spacetrack.py...
-[2026-08-13T23:38:47.975637] ingestion/spacetrack.py FAILED — Set SPACETRACK_USER and SPACETRACK_PASS env vars first.
+[2026-08-13T23:38:47.975637] ingestion/spacetrack.py FAILED ï¿½ Set SPACETRACK_USER and SPACETRACK_PASS env vars first.
 [2026-08-13T23:38:47.976100] Running ingestion/discos.py...
 [2026-08-13T23:50:54.900055] === Starting full ingestion run ===
 [2026-08-13T23:50:54.901125] Running ingestion/celestrak.py...
@@ -23,7 +23,7 @@ IndentationError: expected an indented block after 'for' statement on line 64
 [2026-08-13T23:51:34.633030] Running ingestion/satnogs.py...
 [2026-08-13T23:51:41.228842] ingestion/satnogs.py SUCCESS
 [2026-08-13T23:51:41.229797] Running ingestion/spacetrack.py...
-[2026-08-13T23:51:41.556473] ingestion/spacetrack.py FAILED — Set SPACETRACK_USER and SPACETRACK_PASS env vars first.
+[2026-08-13T23:51:41.556473] ingestion/spacetrack.py FAILED ï¿½ Set SPACETRACK_USER and SPACETRACK_PASS env vars first.
 [2026-08-13T23:51:41.557320] Running ingestion/discos.py...
 [2026-08-13T23:56:58.407760] === Starting full ingestion run ===
 [2026-08-13T23:56:58.408312] Running ingestion/celestrak.py...
@@ -39,7 +39,7 @@ IndentationError: expected an indented block after 'for' statement on line 64
 [2026-08-14T00:44:24.782179] === Run complete ===
 [2026-09-11T23:34:05.171539] === Starting full ingestion run ===
 [2026-09-11T23:34:05.172523] Running ingestion/celestrak.py...
-[2026-09-11T23:34:05.822498] ingestion/celestrak.py FAILED — Traceback (most recent call last):
+[2026-09-11T23:34:05.822498] ingestion/celestrak.py FAILED ï¿½ Traceback (most recent call last):
   File "C:\Users\Administrator\Space-website\backend\ingestion\celestrak.py", line 5, in <module>
     conn = psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -48,7 +48,7 @@ IndentationError: expected an indented block after 'for' statement on line 64
     )
   File "C:\Users\
 [2026-09-11T23:34:05.827585] Running ingestion/satnogs.py...
-[2026-09-11T23:34:06.264043] ingestion/satnogs.py FAILED — Traceback (most recent call last):
+[2026-09-11T23:34:06.264043] ingestion/satnogs.py FAILED ï¿½ Traceback (most recent call last):
   File "C:\Users\Administrator\Space-website\backend\ingestion\satnogs.py", line 8, in <module>
     conn = psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -59,7 +59,7 @@ IndentationError: expected an indented block after 'for' statement on line 64
 [2026-09-11T23:34:06.264881] Running ingestion/spacetrack.py...
 [2026-09-11T23:34:30.914411] ingestion/spacetrack.py SUCCESS
 [2026-09-11T23:34:30.915078] Running ingestion/discos.py...
-[2026-09-11T23:44:27.775544] ingestion/discos.py FAILED — Traceback (most recent call last):
+[2026-09-11T23:44:27.775544] ingestion/discos.py FAILED ï¿½ Traceback (most recent call last):
   File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 534, in _make_request
     response = conn.getresponse()
   File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.p
@@ -70,7 +70,7 @@ IndentationError: expected an indented block after 'for' statement on line 64
 [2026-09-11T23:53:15.066997] Running ingestion/celestrak.py...
 [2026-09-11T23:53:46.821479] ingestion/celestrak.py SUCCESS
 [2026-09-11T23:53:46.822258] Running ingestion/satnogs.py...
-[2026-09-11T23:53:47.234011] ingestion/satnogs.py FAILED — Traceback (most recent call last):
+[2026-09-11T23:53:47.234011] ingestion/satnogs.py FAILED ï¿½ Traceback (most recent call last):
   File "C:\Users\Administrator\Space-website\backend\ingestion\satnogs.py", line 26, in <module>
     url = API_URL
           ^^^^^^^
@@ -78,7 +78,7 @@ NameError: name 'API_URL' is not defined
 [2026-09-11T23:53:47.234870] Running ingestion/spacetrack.py...
 [2026-09-11T23:54:12.206409] ingestion/spacetrack.py SUCCESS
 [2026-09-11T23:54:12.207504] Running ingestion/discos.py...
-[2026-09-12T00:38:06.723215] ingestion/discos.py FAILED — Traceback (most recent call last):
+[2026-09-12T00:38:06.723215] ingestion/discos.py FAILED ï¿½ Traceback (most recent call last):
   File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 534, in _make_request
     response = conn.getresponse()
   File "C:\Users\Administrator\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.p

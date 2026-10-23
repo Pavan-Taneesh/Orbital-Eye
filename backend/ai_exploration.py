@@ -12,17 +12,31 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from backend.ai import AIService, make_service
-from backend.ai.exceptions import (
-    MissingCredentialsError,
-    ProviderFailureError,
-    ProviderTimeoutError,
-)
-from backend.application_state import get_app_state
-from backend.command_system import (
-    AICommandBridge,
-    CommandName,
-)
+try:
+    from backend.ai import AIService, make_service
+    from backend.ai.exceptions import (
+        MissingCredentialsError,
+        ProviderFailureError,
+        ProviderTimeoutError,
+    )
+    from backend.application_state import get_app_state
+    from backend.command_system import (
+        AICommandBridge,
+        CommandName,
+    )
+except ImportError:
+    # Fallback for Docker container where working directory is /app/backend
+    from ai import AIService, make_service
+    from ai.exceptions import (
+        MissingCredentialsError,
+        ProviderFailureError,
+        ProviderTimeoutError,
+    )
+    from application_state import get_app_state
+    from command_system import (
+        AICommandBridge,
+        CommandName,
+    )
 
 logger = logging.getLogger(__name__)
 

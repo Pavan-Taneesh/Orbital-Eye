@@ -53,7 +53,7 @@ def state_command(object_id: int, when: Any | None = None) -> dict[str, Any]:
     if not isinstance(object_id, int) or object_id < 1:
         raise ValueError(f"object_id must be a positive integer, got {object_id}")
 
-    from backend.services.state_service import state_service as _state_service
+    from services.state_service import state_service as _state_service
 
     state = _state_service(object_id=object_id, when=when)
     return {
@@ -94,7 +94,7 @@ def diagnose_command(object_id: int) -> dict[str, Any]:
     if not isinstance(object_id, int) or object_id < 1:
         raise ValueError(f"object_id must be a positive integer, got {object_id}")
 
-    from backend.services.diagnostics_service import (
+    from services.diagnostics_service import (
         diagnostics_service as _diag_service,
     )
 
@@ -121,7 +121,7 @@ def health_command() -> dict[str, str]:
     """
     _setup_paths()
 
-    from backend.services.health_service import health_service as _health_service
+    from services.health_service import health_service as _health_service
 
     result = _health_service()
     return {"status": str(result.get("status", "unknown"))}

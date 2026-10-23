@@ -6,12 +6,15 @@ Run with: python -m uvicorn main:app --reload --port 8000
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "logic"))
+
 # Repo root, so the `backend` package (used by the AI pipeline) is importable
 # when the server is started from inside backend/.
 _REPO_ROOT = str(Path(__file__).resolve().parent.parent)
@@ -27,6 +30,7 @@ from pydantic import BaseModel, Field
 
 from rate_limit import SlidingWindowRateLimiter
 from schemas import (
+    BulkStateResponse,
     DiagnosticsResponse,
     HealthResponse,
     MediaResponse,
@@ -37,19 +41,12 @@ from schemas import (
 from services.catalog_service import CatalogUnavailableError, get_catalog_snapshot
 from services.diagnostics_service import diagnostics_service as diagnostics_service_svc
 from services.health_service import health_service as health_service_svc
-from services.object_service import (
-    get_object as get_object_svc,
-)
-from services.object_service import (
-    get_object_media as get_object_media_svc,
-)
-from services.object_service import (
-    list_objects as list_objects_svc,
-)
-from services.object_service import (
-    search_objects as search_objects_svc,
-)
+from services.object_service import get_object as get_object_svc
+from services.object_service import get_object_media as get_object_media_svc
+from services.object_service import list_objects as list_objects_svc
+from services.state_service import bulk_state_service as bulk_state_service_svc
 from services.state_service import state_service as state_service_svc
+
 
 app = FastAPI(title="Space-website API", version="0.1.0")
 
@@ -89,6 +86,15 @@ ai_rate_limiter = SlidingWindowRateLimiter(
 )
 
 
+def connect():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+    )
+
+
 class AIExploreRequest(BaseModel):
     request: str = Field(..., min_length=1, max_length=500)
 
@@ -102,6 +108,7 @@ class AIExploreResponse(BaseModel):
     error_type: str | None = None
     latency_ms: float = 0.0
     tokens_used: dict = {}
+
 
 # ---------------------------------------------------------------------------
 # Health
@@ -124,29 +131,41 @@ def health_check():
 def _etag_candidates(if_none_match: str | None) -> set[str]:
     if not if_none_match:
         return set()
-    return {c.strip().removeprefix("W/").strip().strip('"') for c in if_none_match.split(",")}
+
+    return {
+        c.strip().removeprefix("W/").strip().strip('"')
+        for c in if_none_match.split(",")
+    }
 
 
 def _accepts_gzip(accept_encoding: str | None) -> bool:
     """True if Accept-Encoding allows gzip (q=0 means refused; * counts)."""
     if not accept_encoding:
         return False
+
     star: float | None = None
+
     for part in accept_encoding.split(","):
         coding, _, params = part.strip().partition(";")
         q = 1.0
+
         for p in params.split(";"):
             k, _, v = p.strip().partition("=")
+
             if k.strip().lower() == "q":
                 try:
                     q = float(v)
                 except ValueError:
                     q = 0.0
+
         coding = coding.strip().lower()
+
         if coding in ("gzip", "x-gzip"):
             return q > 0
+
         if coding == "*":
             star = q
+
     return bool(star and star > 0)
 
 
@@ -168,58 +187,111 @@ def get_catalog(request: Request):
             content={"detail": "catalog temporarily unavailable"},
             headers={"Retry-After": "10", "Cache-Control": "no-store"},
         )
+
     gz = _accepts_gzip(request.headers.get("accept-encoding"))
     etag = f"{snap.version}-gz" if gz else snap.version
+
     headers = {
         "ETag": f'"{etag}"',
         "Cache-Control": CATALOG_CACHE_CONTROL,
         "Vary": "Accept-Encoding",
     }
+
     inm = request.headers.get("if-none-match")
+
     if inm is not None and (
-        inm.strip() == "*" or _etag_candidates(inm) & {snap.version, f"{snap.version}-gz"}
+        inm.strip() == "*"
+        or _etag_candidates(inm) & {snap.version, f"{snap.version}-gz"}
     ):
         return Response(status_code=304, headers=headers)
+
     if gz:
         headers["Content-Encoding"] = "gzip"
-        return Response(content=snap.gz_body, media_type="application/json", headers=headers)
+        return Response(
+            content=snap.gz_body,
+            media_type="application/json",
+            headers=headers,
+        )
+
     # Explicit identity stops GZipMiddleware (which ignores q-values) from
     # re-compressing for clients that refused gzip.
     headers["Content-Encoding"] = "identity"
-    return Response(content=snap.body, media_type="application/json", headers=headers)
+
+    return Response(
+        content=snap.body,
+        media_type="application/json",
+        headers=headers,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Object search / listing
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/objects/search", response_model=PaginatedResponse)
+@app.get("/api/v1/objects/search")
 def search_objects(
     q: str = Query("", max_length=100),
     category: int | None = None,
+    object_type: str | None = None,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0, le=100_000),
 ):
-    """GET /api/v1/objects/search
+    """Search objects by name, category, or object type."""
+    conn = connect()
+    cur = conn.cursor()
 
-    Application-level orchestration delegated to
-    object_service.search_objects.
+    try:
+        base_where = "WHERE o.name ILIKE %s"
+        params: list[Any] = [f"%{q}%"]
 
-    Args:
-        q: Case-insensitive match against object name
-        category: Optional filter by category_id (1-7)
-        limit: Max 100 results per page (default 20)
-        offset: Pagination offset (default 0)
+        if category is not None:
+            base_where += " AND o.category_id = %s"
+            params.append(category)
 
-    Returns:
-        PaginatedResponse with ObjectSummary results
-    """
-    return search_objects_svc(
-        q=q,
-        category=category,
-        limit=limit,
-        offset=offset,
-    )
+        if object_type is not None:
+            base_where += " AND o.object_type = %s"
+            params.append(object_type)
+
+        cur.execute(
+            f"SELECT COUNT(*) FROM objects o {base_where};",
+            params,
+        )
+        total_count = cur.fetchone()[0]
+
+        query = f"""
+            SELECT o.object_id, o.name, o.norad_id, o.category_id, o.object_type
+            FROM objects o
+            {base_where}
+            ORDER BY o.object_id
+            LIMIT %s OFFSET %s;
+        """
+
+        cur.execute(query, params + [limit, offset])
+        rows = cur.fetchall()
+
+    finally:
+        cur.close()
+        conn.close()
+
+    results = [
+        {
+            "object_id": r[0],
+            "name": r[1],
+            "norad_id": r[2],
+            "category_id": r[3],
+            "object_type": r[4],
+        }
+        for r in rows
+    ]
+
+    return {
+        "results": results,
+        "count": len(results),
+        "total_count": total_count,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(results) < total_count,
+    }
 
 
 @app.get("/api/v1/objects", response_model=PaginatedResponse)
@@ -242,6 +314,38 @@ def list_objects(
         PaginatedResponse with ObjectSummary results
     """
     return list_objects_svc(
+        category=category,
+        limit=limit,
+        offset=offset,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Bulk orbital state (must come before /objects/{object_id})
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/v1/objects/states",
+    response_model=BulkStateResponse,
+)
+def get_bulk_states(
+    category: int | None = None,
+    limit: int = Query(250, ge=1, le=250),
+    offset: int = Query(0, ge=0, le=100_000),
+):
+    """GET /api/v1/objects/states
+
+    Bulk orbital state retrieval for a category.
+
+    Args:
+        category: Optional filter by category_id (1-7)
+        limit: Max 250 results per page (default: 250)
+        offset: Pagination offset (default: 0)
+
+    Returns:
+        BulkStateResponse with StateResponse results
+    """
+    return bulk_state_service_svc(
         category=category,
         limit=limit,
         offset=offset,
@@ -399,10 +503,14 @@ def _run_exploration(text: str):
     ai_service = make_service(provider_name)
 
     base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+
     with APIClient(base_url=base_url) as api_client:
         executor = CommandExecutor(api_client=api_client)
         bridge = AICommandBridge(executor=executor)
-        service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
+        service = AIExplorationService(
+            ai_service=ai_service,
+            command_bridge=bridge,
+        )
         return service.explore(text)
 
 
@@ -425,6 +533,7 @@ def ai_explore(req: AIExploreRequest, request: Request):
     """
     client_ip = request.client.host if request.client else "unknown"
     allowed, retry_after = ai_rate_limiter.hit(client_ip)
+
     if not allowed:
         raise HTTPException(
             status_code=429,

@@ -53,6 +53,19 @@ class ListParams(BaseModel):
     offset: int = Field(default=0, ge=0, description="Pagination offset")
 
 
+class BulkStateParams(BaseModel):
+    """Request model for GET /api/v1/objects/states.
+
+    category: optional filter by category_id (1-7)
+    limit: max 250, min 1 (default: 250)
+    offset: pagination offset (default: 0)
+    """
+
+    category: int | None = Field(default=None, ge=1, le=7, description="Filter by category_id (1-7)")
+    limit: int = Field(default=250, ge=1, le=250, description="Max 250 results per page")
+    offset: int = Field(default=0, ge=0, description="Pagination offset")
+
+
 class ObjectIdPath(BaseModel):
     """Path parameter model for object_id across all object endpoints.
 
@@ -258,6 +271,20 @@ class MediaResponse(BaseModel):
         default_factory=list,
         description="Media attachments for this object",
     )
+
+
+class BulkStateResponse(BaseModel):
+    """Paginated response for bulk orbital state retrieval.
+
+    Used by GET /api/v1/objects/states.
+    """
+
+    results: list[StateResponse] = Field(default_factory=list, description="Page of orbital states")
+    count: int = Field(default=0, description="Number of results in this page")
+    total_count: int = Field(..., description="Total available objects across all pages")
+    limit: int = Field(..., description="Limit parameter used for this page")
+    offset: int = Field(..., description="Offset parameter used for this page")
+    has_more: bool = Field(..., description="Whether more results are available beyond this page")
 
 
 class ErrorResponse(BaseModel):

@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM python:3.12-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1
-WORKDIR /app
+WORKDIR /app/backend
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser -m appuser
@@ -29,7 +29,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY backend/ .
+COPY ./backend .
 
 # Set ownership
 RUN chown -R appuser:appuser /app

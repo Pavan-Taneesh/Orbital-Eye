@@ -44,6 +44,15 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
+  // If an external signal is provided, link it to our controller
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort()
+    } else {
+      options.signal.addEventListener('abort', () => controller.abort())
+    }
+  }
+
   try {
     const response = await fetch(url, {
       ...options,

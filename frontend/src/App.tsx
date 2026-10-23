@@ -858,6 +858,37 @@ function SatellitesLayer({
     }
   })
 
+  // Real-time propagation for selected satellite
+  useFrame((_, delta) => {
+    if (!selectedId) {
+      setSelectedSatPosition(null)
+      return
+    }
+
+    const sat = satellites.find((s) => s.id === selectedId)
+    if (!sat) {
+      setSelectedSatPosition(null)
+      return
+    }
+
+    const objectId = sat.objectId
+    const orbitData = orbitDataCache.get(objectId)
+    if (!orbitData) {
+      // Fall back to static state position if orbit data not loaded yet
+      const pos = getSatelliteWorldPosition(sat, selectedSatelliteState, satelliteCache, selectedId)
+      setSelectedSatPosition(pos)
+      return
+    }
+
+    // Advance simulation time
+    simTimeRef.current = new Date(simTimeRef.current.getTime() + delta * 1000)
+
+    const state = propagateToEcef(orbitData.satrec, simTimeRef.current)
+    if (state) {
+      setSelectedSatPosition(state.positionThree)
+    }
+  })
+
   useEffect(() => {
     const colorAttr = buffers.core.getAttribute('color') as THREE.BufferAttribute
     const colors = colorAttr.array as Float32Array
@@ -1254,7 +1285,7 @@ function Scene({
 
       <OrbitControls
         makeDefault
-        enabled={phase === 'main'}
+        enabled={phase === 'main' && controlsEnabled}
         enablePan={false}
         enableDamping
         dampingFactor={0.075}

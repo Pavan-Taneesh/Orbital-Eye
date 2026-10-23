@@ -11,12 +11,11 @@ where appropriate.
 
 from __future__ import annotations
 
-from contextlib import closing
 from typing import Any
 
 from fastapi import HTTPException
 
-from logic.state_model import connect
+from db import get_connection
 from schemas import build_object_details_from_row
 
 
@@ -59,13 +58,20 @@ def search_objects(
 
     base_where = "WHERE o.name ILIKE %s ESCAPE E'\\\\'"
     params: list[Any] = [f"%{_escape_like(q)}%"]
+
     if category is not None:
         base_where += " AND o.category_id = %s"
         params.append(category)
 
-    with closing(connect()) as conn, conn.cursor() as cur:
-        # total count (for has_more / pagination metadata)
-        cur.execute(f"SELECT COUNT(*) FROM objects o {base_where};", params)
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # Total count for pagination metadata.
+        cur.execute(
+            f"SELECT COUNT(*) FROM objects o {base_where};",
+            params,
+        )
         total_count = cur.fetchone()[0]
 
         query = f"""
@@ -75,13 +81,24 @@ def search_objects(
             ORDER BY o.object_id
             LIMIT %s OFFSET %s;
         """
+
         cur.execute(query, params + [limit, offset])
         rows = cur.fetchall()
 
+    finally:
+        cur.close()
+        conn.close()
+
     results = [
-        {"object_id": r[0], "name": r[1], "norad_id": r[2], "category_id": r[3]}
+        {
+            "object_id": r[0],
+            "name": r[1],
+            "norad_id": r[2],
+            "category_id": r[3],
+        }
         for r in rows
     ]
+
     return {
         "results": results,
         "count": len(results),
@@ -115,12 +132,19 @@ def list_objects(
 
     base_where = ""
     params: list[Any] = []
+
     if category is not None:
         base_where = "WHERE category_id = %s"
         params.append(category)
 
-    with closing(connect()) as conn, conn.cursor() as cur:
-        cur.execute(f"SELECT COUNT(*) FROM objects {base_where};", params)
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            f"SELECT COUNT(*) FROM objects {base_where};",
+            params,
+        )
         total_count = cur.fetchone()[0]
 
         query = f"""
@@ -130,13 +154,24 @@ def list_objects(
             ORDER BY object_id
             LIMIT %s OFFSET %s;
         """
+
         cur.execute(query, params + [limit, offset])
         rows = cur.fetchall()
 
+    finally:
+        cur.close()
+        conn.close()
+
     results = [
-        {"object_id": r[0], "name": r[1], "norad_id": r[2], "category_id": r[3]}
+        {
+            "object_id": r[0],
+            "name": r[1],
+            "norad_id": r[2],
+            "category_id": r[3],
+        }
         for r in rows
     ]
+
     return {
         "results": results,
         "count": len(results),
@@ -166,7 +201,10 @@ def get_object(object_id: int) -> dict[str, Any]:
     """
     _validate_object_id(object_id)
 
-    with closing(connect()) as conn, conn.cursor() as cur:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
         cur.execute(
             """
             SELECT o.object_id, o.name, o.category_id, c.name AS category, o.norad_id
@@ -176,7 +214,9 @@ def get_object(object_id: int) -> dict[str, Any]:
             """,
             (object_id,),
         )
+
         row = cur.fetchone()
+
         if row is None:
             raise HTTPException(status_code=404, detail="object not found")
 
@@ -186,16 +226,24 @@ def get_object(object_id: int) -> dict[str, Any]:
             "SELECT field_name, field_value FROM resolved_metadata WHERE object_id = %s;",
             (object_id,),
         )
-        metadata = {field_name: field_value for field_name, field_value in cur.fetchall()}
+        metadata = {
+            field_name: field_value
+            for field_name, field_value in cur.fetchall()
+        }
 
         cur.execute(
             "SELECT url, media_type, source_id FROM media WHERE object_id = %s;",
             (object_id,),
         )
+
         media_rows = [
             {"url": r[0], "media_type": r[1], "source_id": r[2]}
             for r in cur.fetchall()
         ]
+
+    finally:
+        cur.close()
+        conn.close()
 
     od = build_object_details_from_row(
         object_id=obj_id,
@@ -226,19 +274,34 @@ def get_object_media(object_id: int) -> dict[str, Any]:
     """
     _validate_object_id(object_id)
 
-    with closing(connect()) as conn, conn.cursor() as cur:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
         cur.execute(
             "SELECT url, media_type, source_id FROM media WHERE object_id = %s;",
             (object_id,),
         )
+
         media_rows = [
             {"url": r[0], "media_type": r[1], "source_id": r[2]}
             for r in cur.fetchall()
         ]
 
+    finally:
+        cur.close()
+        conn.close()
+
     media_items = [
-        {"url": row["url"], "media_type": row["media_type"], "source_id": row["source_id"]}
+        {
+            "url": row["url"],
+            "media_type": row["media_type"],
+            "source_id": row["source_id"],
+        }
         for row in media_rows
     ]
 
-    return {"object_id": object_id, "media": media_items}
+    return {
+        "object_id": object_id,
+        "media": media_items,
+    }

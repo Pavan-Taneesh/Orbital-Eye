@@ -4,30 +4,20 @@ Verifies latest_orbital_elements view + state_model.py status logic
 correctly classify fresh vs stale data.
 """
 
-import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import psycopg2
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "logic"))
-
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 from state_model import STALE_THRESHOLD_HOURS, get_state
 
-
-def connect():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        dbname=os.getenv("DB_NAME", "project_db"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD"),
-    )
+from db import get_connection
 
 
 def test_view_is_stale_matches_threshold():
     """latest_orbital_elements.is_stale should be true iff fetched_at is older than 24hrs."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         "SELECT object_id, fetched_at, is_stale FROM latest_orbital_elements;"
@@ -36,10 +26,10 @@ def test_view_is_stale_matches_threshold():
     cur.close()
     conn.close()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mismatches = []
     for object_id, fetched_at, is_stale in rows:
-        fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+        fetched_at = fetched_at.replace(tzinfo=UTC)
         expected_stale = (now - fetched_at) > timedelta(hours=24)
         if expected_stale != is_stale:
             mismatches.append((object_id, fetched_at, is_stale, expected_stale))
@@ -49,7 +39,7 @@ def test_view_is_stale_matches_threshold():
 
 def test_state_model_status_reflects_staleness():
     """state_model.get_state()'s status should be 'stale' if age_hours exceeds threshold, else 'fresh'."""
-    conn = connect()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT object_id FROM orbital_elements LIMIT 1;")
     object_id = cur.fetchone()[0]

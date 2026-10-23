@@ -7,13 +7,11 @@ Usage (standalone test):
     python logic/state_model.py <object_id>
 """
 
-import os
 import sys
-from contextlib import closing
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import psycopg2
 from propagate import build_satellite, get_latest_elements, propagate
+from db import get_connection
 
 SOURCE_NAMES = {
     1: "CelesTrak",
@@ -25,31 +23,32 @@ SOURCE_NAMES = {
 STALE_THRESHOLD_HOURS = 24
 
 
-def connect():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        dbname=os.getenv("DB_NAME", "project_db"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD"),
-    )
-
-
 def get_source_and_freshness(object_id: int):
     """Pull source_id and fetched_at for the latest orbital_elements row."""
-    with closing(connect()) as conn, conn.cursor() as cur:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
         cur.execute(
             """
             SELECT source_id, fetched_at
             FROM orbital_elements
             WHERE object_id = %s
-            ORDER BY epoch DESC, fetched_at DESC
+            ORDER BY fetched_at DESC
             LIMIT 1;
             """,
             (object_id,),
         )
+
         row = cur.fetchone()
+
+    finally:
+        cur.close()
+        conn.close()
+
     if row is None:
         return None, None
+
     return row
 
 
@@ -59,7 +58,7 @@ def get_state(object_id: int, when: datetime | None = None):
     `when` defaults to now (UTC) if not given.
     """
     if when is None:
-        when = datetime.now(timezone.utc)
+        when = datetime.now(UTC)
 
     source_id, fetched_at = get_source_and_freshness(object_id)
 
@@ -77,17 +76,25 @@ def get_state(object_id: int, when: datetime | None = None):
         }
 
     row = get_latest_elements(object_id)
-    epoch = row[0]  # first column in propagate.py's SELECT
+    epoch = row[0]
     sat = build_satellite(row)
 
     try:
         position, velocity, altitude = propagate(sat, when)
         propagation_ok = True
+
     except RuntimeError:
         position, velocity, altitude = None, None, None
         propagation_ok = False
 
-    age_hours = (when - fetched_at.replace(tzinfo=timezone.utc)).total_seconds() / 3600.0
+    # Ensure fetched_at and requested time are both timezone-aware.
+    if fetched_at.tzinfo is None:
+        fetched_at = fetched_at.replace(tzinfo=UTC)
+
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+
+    age_hours = (when - fetched_at).total_seconds() / 3600.0
 
     if not propagation_ok:
         status = "error"
@@ -102,7 +109,7 @@ def get_state(object_id: int, when: datetime | None = None):
         "velocity": velocity,
         "altitude": altitude,
         "epoch": epoch.isoformat(),
-        "frame": "ECEF",  # SGP4 native output frame — not pure ECI, flagged for Person 1
+        "frame": "ECEF",
         "source": SOURCE_NAMES.get(source_id, f"unknown({source_id})"),
         "age_hours": round(age_hours, 2),
         "status": status,
