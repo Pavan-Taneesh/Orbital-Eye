@@ -1,26 +1,40 @@
-node_modules/
-.opencode/
-@'
-
-# Secrets / environment files
-.env
-.env.*
-backend/.env
-backend/.env.*
-
 # Dependencies
 node_modules/
-frontend/node_modules/
-backend/__pycache__/
-__pycache__/
+venv/
+.venv/
 
-# Local/debug files
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# OpenCode local configuration
+.opencode/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Frontend build output
+dist/
+build/
+
+# Backend cache
+backend/cache/
+backend/__pycache__/
+
+# Testing and coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Local debug scripts
 backend/check_db.py
 
-# Backup / archived frontends
-frontend-cesium-backup/
-frontend-opencode/
-frontend1/
+# Backup folders
 frontend_backup/
-'@ | Add-Content .gitignore
-.coverage
+frontend_old/

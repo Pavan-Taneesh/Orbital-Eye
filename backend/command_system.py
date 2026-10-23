@@ -11,12 +11,15 @@ Commands are validated before execution. AI output is NEVER trusted directly.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, validator
+
+logger = logging.getLogger(__name__)
 
 
 class CommandName(str, Enum):
@@ -384,9 +387,12 @@ class CommandExecutor:
                 f"API error for {command.command}: {exc.detail}",
                 command=command.command.value,
             ) from exc
+        except CommandExecutionError:
+            raise
         except Exception as exc:
+            logger.exception("Command execution failed for %s", command.command)
             raise CommandExecutionError(
-                f"Execution failed for {command.command}: {exc}",
+                f"Execution failed for {command.command}",
                 command=command.command.value,
             ) from exc
 

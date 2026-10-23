@@ -7,6 +7,7 @@ Handles context minimization, AI failure handling, and usage optimization.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -36,6 +37,8 @@ except ImportError:
         AICommandBridge,
         CommandName,
     )
+
+logger = logging.getLogger(__name__)
 
 # System prompt for Gemini to generate structured commands
 SYSTEM_PROMPT = """You are an AI assistant for a satellite tracking application. Convert user requests into structured JSON commands.
@@ -288,14 +291,15 @@ class AIExplorationService:
                 latency_ms=latency_ms,
             )
 
-        except Exception as exc:  # noqa: BLE001 - catch-all for unexpected errors
+        except Exception as exc:  # catch-all for unexpected errors (logged below)
             self.total_errors += 1
             self.errors_by_type["unexpected"] = self.errors_by_type.get("unexpected", 0) + 1
             latency_ms = (time.time() - start_time) * 1000
-            app_state.ai.record_error(f"Unexpected error: {exc}")
+            logger.exception("Unexpected error during AI exploration")
+            app_state.ai.record_error(f"Unexpected error: {type(exc).__name__}")
             return ExplorationResult(
                 success=False,
-                error=f"Unexpected error: {exc}",
+                error="An unexpected error occurred. Please try again.",
                 error_type="unexpected",
                 latency_ms=latency_ms,
             )
