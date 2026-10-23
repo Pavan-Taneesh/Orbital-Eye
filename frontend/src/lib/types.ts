@@ -1,23 +1,3 @@
-export interface HealthResponse {
-  status: string;
-}
-
-export interface ObjectSummary {
-  object_id: number;
-  name: string;
-  norad_id: number;
-  category_id: number;
-}
-
-export interface PaginatedResponse {
-  results: ObjectSummary[];
-  count: number;
-  total_count: number;
-  limit: number;
-  offset: number;
-  has_more: boolean;
-}
-
 export interface MediaResponseItem {
   url: string;
   media_type: string;
@@ -34,51 +14,12 @@ export interface ObjectDetails {
   media: MediaResponseItem[];
 }
 
-export interface StateResponse {
-  object_id: number;
-  position: number[] | null;
-  velocity: number[] | null;
-  altitude: number | null;
-  epoch: string | null;
-  frame: string;
-  source: string | null;
-  age_hours: number | null;
-  status: 'fresh' | 'stale' | 'error' | 'unavailable';
-}
-
-export interface StalenessInfo {
-  age_hours: number;
-  threshold_hours: number;
-  is_stale: boolean;
-}
-
-export interface IngestionHistoryItem {
-  element_id: number;
-  source_id: number;
-  epoch: string;
-  fetched_at: string;
-}
-
-export interface DiagnosticsResponse {
-  object_id: number;
-  raw_latest_row: Record<string, unknown> | null;
-  sgp4_error_code: number | null;
-  staleness: StalenessInfo;
-  ingestion_history: IngestionHistoryItem[];
-  ingestion_row_count: number;
-}
-
-export interface MediaResponse {
-  object_id: number;
-  media: MediaResponseItem[];
-}
-
-export interface ErrorResponse {
-  detail: string;
-}
-
 export interface AICommandResult {
-  command: string;
+  success?: boolean;
+  command: string | null;
+  ai_response?: string | null;
+  error?: string | null;
+  error_type?: string | null;
   result?: {
     data?: {
       object?: { object_id: number };
@@ -92,21 +33,6 @@ export interface AICommandResult {
       has_more?: boolean;
     };
   };
-}
-
-export interface SearchParams {
-  q?: string;
-  category?: number;
-  limit?: number;
-  offset?: number;
-  [key: string]: string | number | undefined;
-}
-
-export interface ListParams {
-  category?: number;
-  limit?: number;
-  offset?: number;
-  [key: string]: string | number | undefined;
 }
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -149,7 +75,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     let detail = response.statusText;
     try {
       const errorData = await response.json();
-      detail = errorData.detail || detail;
+      if (typeof errorData?.detail === 'string') detail = errorData.detail;
     } catch {
       // Use statusText if JSON parsing fails
     }
@@ -158,54 +84,82 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-function buildQuery(params: Record<string, unknown>): string {
-  const searchParams = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      searchParams.append(key, String(value));
-    }
-  });
-  return searchParams.toString();
+function objectPath(objectId: number): string {
+  if (!Number.isSafeInteger(objectId) || objectId <= 0) {
+    throw createAPIError(400, `Invalid object id: ${objectId}`);
+  }
+  return `${API_BASE_URL}/objects/${objectId}`;
+}
+
+/* ------------------------------------------------------------------
+   GET cache
+   ------------------------------------------------------------------
+   Every GET goes through one cache keyed by URL:
+   - concurrent callers for the same URL share one in-flight request;
+   - a resolved response is reused until its TTL expires;
+   - failures are evicted so a retry really hits the network;
+   - each caller receives its own deep copy, so no two consumers ever
+     hold (and accidentally mutate) the same response object.
+   ------------------------------------------------------------------ */
+
+const CACHE_MAX_ENTRIES = 300;
+const TTL = {
+  details: 5 * 60_000,
+};
+
+type CacheEntry = { expires: number; promise: Promise<unknown> };
+const getCache = new Map<string, CacheEntry>();
+
+function cachedGet<T>(url: string, ttlMs: number): Promise<T> {
+  const now = Date.now();
+  const hit = getCache.get(url);
+  if (hit && hit.expires > now) {
+    // Refresh recency so the eviction below behaves like an LRU.
+    getCache.delete(url);
+    getCache.set(url, hit);
+    return hit.promise.then((data) => structuredClone(data) as T);
+  }
+
+  const promise = fetchWithTimeout(url).then((response) => handleResponse<T>(response));
+  const entry: CacheEntry = { expires: Number.POSITIVE_INFINITY, promise };
+  getCache.set(url, entry);
+  promise.then(
+    () => {
+      // TTL starts when the data arrives, not when it was requested.
+      entry.expires = Date.now() + ttlMs;
+    },
+    () => {
+      if (getCache.get(url) === entry) getCache.delete(url);
+    },
+  );
+
+  while (getCache.size > CACHE_MAX_ENTRIES) {
+    const oldest = getCache.keys().next().value;
+    if (oldest === undefined) break;
+    getCache.delete(oldest);
+  }
+
+  return promise.then((data) => structuredClone(data) as T);
+}
+
+/** Only http(s) links from the backend are allowed into href attributes. */
+export function safeExternalUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 export const api = {
-  health: async (): Promise<HealthResponse> => {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/health`);
-    return handleResponse<HealthResponse>(response);
-  },
-
-  search: async (params: SearchParams = {}): Promise<PaginatedResponse> => {
-    const query = buildQuery(params as Record<string, unknown>);
-    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/search?${query}`);
-    return handleResponse<PaginatedResponse>(response);
-  },
-
-  list: async (params: ListParams = {}): Promise<PaginatedResponse> => {
-    const query = buildQuery(params as Record<string, unknown>);
-    const response = await fetchWithTimeout(`${API_BASE_URL}/objects?${query}`);
-    return handleResponse<PaginatedResponse>(response);
-  },
-
+  /** Object details. Includes `media`, so a separate media call is unnecessary. */
   get: async (objectId: number): Promise<ObjectDetails> => {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}`);
-    return handleResponse<ObjectDetails>(response);
+    return cachedGet<ObjectDetails>(objectPath(objectId), TTL.details);
   },
 
-  state: async (objectId: number): Promise<StateResponse> => {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}/state`);
-    return handleResponse<StateResponse>(response);
-  },
-
-  diagnostics: async (objectId: number): Promise<DiagnosticsResponse> => {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}/diagnostics`);
-    return handleResponse<DiagnosticsResponse>(response);
-  },
-
-  media: async (objectId: number): Promise<MediaResponse> => {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/objects/${objectId}/media`);
-    return handleResponse<MediaResponse>(response);
-  },
-
+  // POST: never cached, each question is a new request.
   explore: async (params: { request: string }): Promise<AICommandResult> => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/ai/explore`, {
       method: 'POST',

@@ -12,11 +12,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "logic"))
+# Repo root, so the `backend` package (used by the AI pipeline) is importable
+# when the server is started from inside backend/.
+_REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+if _REPO_ROOT not in sys.path:
+    sys.path.append(_REPO_ROOT)
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
+from rate_limit import SlidingWindowRateLimiter
 from schemas import (
     DiagnosticsResponse,
     HealthResponse,
@@ -25,6 +34,7 @@ from schemas import (
     PaginatedResponse,
     StateResponse,
 )
+from services.catalog_service import CatalogUnavailableError, get_catalog_snapshot
 from services.diagnostics_service import diagnostics_service as diagnostics_service_svc
 from services.health_service import health_service as health_service_svc
 from services.object_service import (
@@ -43,19 +53,44 @@ from services.state_service import state_service as state_service_svc
 
 app = FastAPI(title="Space-website API", version="0.1.0")
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+        os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Accept"],
+    # If-None-Match lets the browser revalidate the cached catalog (304, no body).
+    allow_headers=["Content-Type", "Accept", "If-None-Match"],
+    expose_headers=["ETag"],
+)
+
+
+DETAIL_CACHE_CONTROL = "public, max-age=3600"
+CATALOG_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=86400"
+
+# Shared parameter bounds
+MAX_OBJECT_ID = 2**31 - 1  # Postgres INTEGER upper bound
+ObjectIdParam = PathParam(..., ge=1, le=MAX_OBJECT_ID)
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+# Per-IP sliding-window limiter for the AI endpoint (0 disables it).
+ai_rate_limiter = SlidingWindowRateLimiter(
+    limit=_env_int("AI_RATE_LIMIT_PER_MIN", 10),
+    window_seconds=60.0,
 )
 
 
 class AIExploreRequest(BaseModel):
-    request: str
+    request: str = Field(..., min_length=1, max_length=500)
 
 
 class AIExploreResponse(BaseModel):
@@ -83,15 +118,87 @@ def health_check():
 
 
 # ---------------------------------------------------------------------------
+# Catalog (single cached snapshot of all on-orbit objects)
+# ---------------------------------------------------------------------------
+
+def _etag_candidates(if_none_match: str | None) -> set[str]:
+    if not if_none_match:
+        return set()
+    return {c.strip().removeprefix("W/").strip().strip('"') for c in if_none_match.split(",")}
+
+
+def _accepts_gzip(accept_encoding: str | None) -> bool:
+    """True if Accept-Encoding allows gzip (q=0 means refused; * counts)."""
+    if not accept_encoding:
+        return False
+    star: float | None = None
+    for part in accept_encoding.split(","):
+        coding, _, params = part.strip().partition(";")
+        q = 1.0
+        for p in params.split(";"):
+            k, _, v = p.strip().partition("=")
+            if k.strip().lower() == "q":
+                try:
+                    q = float(v)
+                except ValueError:
+                    q = 0.0
+        coding = coding.strip().lower()
+        if coding in ("gzip", "x-gzip"):
+            return q > 0
+        if coding == "*":
+            star = q
+    return bool(star and star > 0)
+
+
+@app.get("/api/v1/catalog")
+def get_catalog(request: Request):
+    """GET /api/v1/catalog
+
+    Every on-orbit object with its latest SGP4 mean elements and SATCAT
+    metadata (shape: frontend/src/engine/contract.ts CatalogResponseWire).
+    Served from an in-process cache, pre-gzipped once per snapshot. ETags are
+    per representation ("<v>" identity, "<v>-gz" gzip); If-None-Match matching
+    either yields 304.
+    """
+    try:
+        snap = get_catalog_snapshot()
+    except CatalogUnavailableError:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "catalog temporarily unavailable"},
+            headers={"Retry-After": "10", "Cache-Control": "no-store"},
+        )
+    gz = _accepts_gzip(request.headers.get("accept-encoding"))
+    etag = f"{snap.version}-gz" if gz else snap.version
+    headers = {
+        "ETag": f'"{etag}"',
+        "Cache-Control": CATALOG_CACHE_CONTROL,
+        "Vary": "Accept-Encoding",
+    }
+    inm = request.headers.get("if-none-match")
+    if inm is not None and (
+        inm.strip() == "*" or _etag_candidates(inm) & {snap.version, f"{snap.version}-gz"}
+    ):
+        return Response(status_code=304, headers=headers)
+    if gz:
+        headers["Content-Encoding"] = "gzip"
+        return Response(content=snap.gz_body, media_type="application/json", headers=headers)
+    # Explicit identity stops GZipMiddleware (which ignores q-values) from
+    # re-compressing for clients that refused gzip.
+    headers["Content-Encoding"] = "identity"
+    return Response(content=snap.body, media_type="application/json", headers=headers)
+
+
+# ---------------------------------------------------------------------------
 # Object search / listing
 # ---------------------------------------------------------------------------
 
 @app.get("/api/v1/objects/search", response_model=PaginatedResponse)
 def search_objects(
-    q: str = "",
+    q: str = Query("", max_length=100),
     category: int | None = None,
-    limit: int = 20,
-    offset: int = 0,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=100_000),
 ):
     """GET /api/v1/objects/search
 
@@ -118,8 +225,8 @@ def search_objects(
 @app.get("/api/v1/objects", response_model=PaginatedResponse)
 def list_objects(
     category: int | None = None,
-    limit: int = 20,
-    offset: int = 0,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=100_000),
 ):
     """GET /api/v1/objects
 
@@ -146,7 +253,7 @@ def list_objects(
 # ---------------------------------------------------------------------------
 
 @app.get("/api/v1/objects/{object_id}", response_model=ObjectDetails)
-def get_object(object_id: int):
+def get_object(response: Response, object_id: int = ObjectIdParam):
     """GET /api/v1/objects/{object_id}
 
     Application-level orchestration delegated to
@@ -163,7 +270,9 @@ def get_object(object_id: int):
         HTTPException 404: If object not found
     """
     try:
-        return get_object_svc(object_id=object_id)
+        result = get_object_svc(object_id=object_id)
+        response.headers["Cache-Control"] = DETAIL_CACHE_CONTROL
+        return result
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -179,7 +288,7 @@ def get_object(object_id: int):
     "/api/v1/objects/{object_id}/state",
     response_model=StateResponse,
 )
-def get_object_state(object_id: int):
+def get_object_state(object_id: int = ObjectIdParam):
     """GET /api/v1/objects/{object_id}/state
 
     Application-level orchestration delegated to
@@ -194,7 +303,13 @@ def get_object_state(object_id: int):
     Raises:
         HTTPException 404: If no orbital data for this object
     """
-    return state_service_svc(object_id=object_id)
+    try:
+        return state_service_svc(object_id=object_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +320,7 @@ def get_object_state(object_id: int):
     "/api/v1/objects/{object_id}/diagnostics",
     response_model=DiagnosticsResponse,
 )
-def get_object_diagnostics(object_id: int):
+def get_object_diagnostics(object_id: int = ObjectIdParam):
     """GET /api/v1/objects/{object_id}/diagnostics
 
     Application-level orchestration delegated to
@@ -220,7 +335,13 @@ def get_object_diagnostics(object_id: int):
     Raises:
         HTTPException 404: If no orbital data for this object
     """
-    return diagnostics_service_svc(object_id=object_id)
+    try:
+        return diagnostics_service_svc(object_id=object_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +352,7 @@ def get_object_diagnostics(object_id: int):
     "/api/v1/objects/{object_id}/media",
     response_model=MediaResponse,
 )
-def get_object_media(object_id: int):
+def get_object_media(response: Response, object_id: int = ObjectIdParam):
     """GET /api/v1/objects/{object_id}/media
 
     Application-level orchestration delegated to
@@ -247,7 +368,9 @@ def get_object_media(object_id: int):
         HTTPException 400: If object_id is not positive
     """
     try:
-        return get_object_media_svc(object_id=object_id)
+        result = get_object_media_svc(object_id=object_id)
+        response.headers["Cache-Control"] = DETAIL_CACHE_CONTROL
+        return result
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -259,35 +382,57 @@ def get_object_media(object_id: int):
 # AI Exploration
 # ---------------------------------------------------------------------------
 
+def _run_exploration(text: str):
+    """Build the AI exploration pipeline for one request and run it.
+
+    The API client is closed when the request finishes.
+    """
+    # The AI pipeline is written as the `backend` package (relative and
+    # `backend.*` imports), so load it through that package, never via the
+    # top-level module names, or its classes would be duplicated.
+    from backend.ai_exploration import AIExplorationService, make_service
+    from backend.client import APIClient
+    from backend.command_system import AICommandBridge, CommandExecutor
+
+    # Use fake provider by default; can be overridden via env var
+    provider_name = os.getenv("AI_PROVIDER", "fake")
+    ai_service = make_service(provider_name)
+
+    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    with APIClient(base_url=base_url) as api_client:
+        executor = CommandExecutor(api_client=api_client)
+        bridge = AICommandBridge(executor=executor)
+        service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
+        return service.explore(text)
+
+
 @app.post("/api/v1/ai/explore", response_model=AIExploreResponse)
-def ai_explore(req: AIExploreRequest):
+def ai_explore(req: AIExploreRequest, request: Request):
     """POST /api/v1/ai/explore
 
     Accepts a natural language request and processes it through the AI
     exploration pipeline (AI provider → validation → command execution).
+    Rate-limited per client IP (AI_RATE_LIMIT_PER_MIN, default 10/min).
 
     Args:
         req: AIExploreRequest with natural language "request" field
 
     Returns:
         AIExploreResponse with command execution result
+
+    Raises:
+        HTTPException 429: If the client exceeded the rate limit
     """
-    # Use fake provider by default; can be overridden via env var
-    import os
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, retry_after = ai_rate_limiter.hit(client_ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many AI requests. Please slow down.",
+            headers={"Retry-After": str(retry_after)},
+        )
 
-    from ai_exploration import AIExplorationService, make_service
-    from client import APIClient
-    from command_system import AICommandBridge, CommandExecutor
-    provider_name = os.getenv("AI_PROVIDER", "fake")
-    ai_service = make_service(provider_name)
-
-    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
-    api_client = APIClient(base_url=base_url)
-    executor = CommandExecutor(api_client=api_client)
-    bridge = AICommandBridge(executor=executor)
-    service = AIExplorationService(ai_service=ai_service, command_bridge=bridge)
-
-    result = service.explore(req.request)
+    result = _run_exploration(req.request)
 
     return AIExploreResponse(
         success=result.success,

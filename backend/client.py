@@ -13,7 +13,7 @@ Typical usage:
 
 from __future__ import annotations
 
-from typing import Any, TypeVar
+from typing import Any, Self, TypeVar
 
 import httpx
 from pydantic import BaseModel
@@ -40,6 +40,16 @@ class APIClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client = httpx.Client(timeout=timeout)
+
+    def close(self) -> None:
+        """Close the underlying httpx.Client and release its connections."""
+        self._client.close()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
 
     def _request(
         self,
@@ -253,4 +263,4 @@ def close_client(client: APIClient) -> None:
     Should be called when the client is no longer needed, e.g. at the
     end of a script or program.
     """
-    client._client.close()
+    client.close()

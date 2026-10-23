@@ -30,22 +30,24 @@ def get_latest_elements(object_id: int):
         user=os.getenv("DB_USER", "postgres"),
         password=os.getenv("DB_PASSWORD"),
     )
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT epoch, mean_motion, eccentricity, inclination,
-               ra_of_asc_node, arg_of_pericenter, mean_anomaly,
-               bstar, mean_motion_dot, mean_motion_ddot
-        FROM orbital_elements
-        WHERE object_id = %s
-        ORDER BY fetched_at DESC
-        LIMIT 1;
-        """,
-        (object_id,),
-    )
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT epoch, mean_motion, eccentricity, inclination,
+                   ra_of_asc_node, arg_of_pericenter, mean_anomaly,
+                   bstar, mean_motion_dot, mean_motion_ddot
+            FROM orbital_elements
+            WHERE object_id = %s
+            ORDER BY epoch DESC, fetched_at DESC
+            LIMIT 1;
+            """,
+            (object_id,),
+        )
+        row = cur.fetchone()
+        cur.close()
+    finally:
+        conn.close()
     if row is None:
         raise ValueError(f"No orbital_elements found for object_id={object_id}")
     return row

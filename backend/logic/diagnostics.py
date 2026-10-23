@@ -9,6 +9,7 @@ Usage (standalone test):
 
 import os
 import sys
+from contextlib import closing
 from datetime import datetime, timezone
 
 import psycopg2
@@ -29,24 +30,21 @@ def connect():
 
 def get_raw_latest_row(object_id: int):
     """Full raw orbital_elements row (all columns) for the latest entry."""
-    conn = connect()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT element_id, object_id, source_id, epoch, mean_motion, eccentricity,
-               inclination, ra_of_asc_node, arg_of_pericenter, mean_anomaly, bstar,
-               mean_motion_dot, mean_motion_ddot, element_set_no, rev_at_epoch, fetched_at
-        FROM orbital_elements
-        WHERE object_id = %s
-        ORDER BY fetched_at DESC
-        LIMIT 1;
-        """,
-        (object_id,),
-    )
-    row = cur.fetchone()
-    colnames = [desc[0] for desc in cur.description]
-    cur.close()
-    conn.close()
+    with closing(connect()) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT element_id, object_id, source_id, epoch, mean_motion, eccentricity,
+                   inclination, ra_of_asc_node, arg_of_pericenter, mean_anomaly, bstar,
+                   mean_motion_dot, mean_motion_ddot, element_set_no, rev_at_epoch, fetched_at
+            FROM orbital_elements
+            WHERE object_id = %s
+            ORDER BY fetched_at DESC
+            LIMIT 1;
+            """,
+            (object_id,),
+        )
+        row = cur.fetchone()
+        colnames = [desc[0] for desc in cur.description]
     if row is None:
         return None
     return dict(zip(colnames, row))
@@ -54,20 +52,17 @@ def get_raw_latest_row(object_id: int):
 
 def get_ingestion_history(object_id: int):
     """All orbital_elements rows ever fetched for this object, oldest to newest."""
-    conn = connect()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT element_id, source_id, epoch, fetched_at
-        FROM orbital_elements
-        WHERE object_id = %s
-        ORDER BY fetched_at ASC;
-        """,
-        (object_id,),
-    )
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    with closing(connect()) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT element_id, source_id, epoch, fetched_at
+            FROM orbital_elements
+            WHERE object_id = %s
+            ORDER BY fetched_at ASC;
+            """,
+            (object_id,),
+        )
+        rows = cur.fetchall()
     return [
         {"element_id": r[0], "source_id": r[1], "epoch": r[2].isoformat(), "fetched_at": r[3].isoformat()}
         for r in rows

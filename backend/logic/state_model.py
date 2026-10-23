@@ -9,6 +9,7 @@ Usage (standalone test):
 
 import os
 import sys
+from contextlib import closing
 from datetime import datetime, timezone
 
 import psycopg2
@@ -35,21 +36,18 @@ def connect():
 
 def get_source_and_freshness(object_id: int):
     """Pull source_id and fetched_at for the latest orbital_elements row."""
-    conn = connect()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT source_id, fetched_at
-        FROM orbital_elements
-        WHERE object_id = %s
-        ORDER BY fetched_at DESC
-        LIMIT 1;
-        """,
-        (object_id,),
-    )
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
+    with closing(connect()) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT source_id, fetched_at
+            FROM orbital_elements
+            WHERE object_id = %s
+            ORDER BY epoch DESC, fetched_at DESC
+            LIMIT 1;
+            """,
+            (object_id,),
+        )
+        row = cur.fetchone()
     if row is None:
         return None, None
     return row
