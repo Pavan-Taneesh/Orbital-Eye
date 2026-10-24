@@ -72,7 +72,7 @@ def test_shape_matches_contract(client):
 
 
 def test_decayed_objects_excluded(client):
-    from logic.state_model import connect
+    from db import get_connection as connect
 
     body = client.get("/api/v1/catalog").json()
     ids = {e["id"] for e in body["objects"]}

@@ -47,7 +47,6 @@ from services.object_service import list_objects as list_objects_svc
 from services.state_service import bulk_state_service as bulk_state_service_svc
 from services.state_service import state_service as state_service_svc
 
-
 app = FastAPI(title="Space-website API", version="0.1.0")
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)

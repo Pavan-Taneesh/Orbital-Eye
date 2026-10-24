@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from logic.state_model import connect
+from db import get_connection as connect
 
 VERSION_TTL_S = 60.0
 ERROR_BACKOFF_S = 10.0

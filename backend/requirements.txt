@@ -33,4 +33,4 @@ mypy>=1.7.0
 types-psycopg2>=2.9.0
 
 # Linting
-ruff>=0.1.0
+ruff==0.17.2
