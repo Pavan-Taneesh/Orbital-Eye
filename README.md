@@ -28,14 +28,22 @@ Frontend (React + Vite + Three.js)  ←→  Backend (FastAPI + PostgreSQL)  ←�
 
 ### Backend
 ```bash
-# 1. Configure environment
-cp backend/.env.example backend/.env
+# 1. Set up Python virtual environment and install dependencies
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r backend/requirements.txt
+
+# 2. Configure environment
+cp .env.example backend/.env
 # Edit backend/.env with your DB credentials
 
-# 2. Start PostgreSQL and run migrations
-# (Schema: backend/db/schema.sql, Views: backend/db/views.sql, Seed: backend/db/seed.sql)
+# 3. Create database and load schema, views, and seed data
+createdb -h localhost -p 5432 -U postgres project_db
+psql -h localhost -p 5432 -U postgres -d project_db -f backend/db/schema.sql
+psql -h localhost -p 5432 -U postgres -d project_db -f backend/db/views.sql
+psql -h localhost -p 5432 -U postgres -d project_db -f backend/db/seed.sql
 
-# 3. Run backend
+# 4. Run backend
 cd backend
 python -m uvicorn main:app --reload --port 8000
 ```
@@ -46,22 +54,25 @@ cd frontend
 npm install
 npm run dev
 ```
+The frontend dev server runs on port `3000` at `http://localhost:3000` (configured in `vite.config.ts`). In Docker Compose, the frontend is served on port `5173`.
 
 ### Docker Compose
 ```bash
 # Set environment variables (copy .env.example to .env and edit)
-docker-compose up -d
+cp .env.example .env
+docker compose up --build -d
 ```
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |---|---|---|
-| `DB_HOST` | Yes | PostgreSQL host |
-| `DB_NAME` | Yes | Database name |
-| `DB_USER` | Yes | Database user |
+| `DB_HOST` | Yes | PostgreSQL host (e.g. `localhost` or `postgres`) |
+| `DB_PORT` | No | PostgreSQL port (default: `5432`) |
+| `DB_NAME` | Yes | Database name (e.g. `project_db`) |
+| `DB_USER` | Yes | Database user (e.g. `postgres`) |
 | `DB_PASSWORD` | Yes | Database password |
-| `FRONTEND_ORIGIN` | Yes | CORS origin (e.g., `http://localhost:3000`) |
+| `FRONTEND_ORIGIN` | Yes | CORS origin (e.g. `http://localhost:3000` for local dev, `http://localhost:5173` for Docker) |
 | `GOOGLE_API_KEY` | No | Google Gemini API key for AI |
 | `SPACETRACK_USER` | No | Space-Track.org username |
 | `SPACETRACK_PASS` | No | Space-Track.org password |
