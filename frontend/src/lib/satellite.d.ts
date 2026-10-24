@@ -32,12 +32,12 @@ declare module './satellite/propagation.js' {
 
 declare module './satellite/propagation/sgp4.js' {
   import type { SatRec } from './satellite/SatRec.js'
-  export function sgp4(satrec: SatRec, tsince: number): { position: { x: number; y: number; z: number }; velocity: { x: number; y: number; z: number }; meanElements: any } | null
+  export function sgp4(satrec: SatRec, tsince: number): { position: { x: number; y: number; z: number }; velocity: { x: number; y: number; z: number }; meanElements: unknown } | null
 }
 
 declare module './satellite/propagation/propagate.js' {
   import type { SatRec } from './satellite/SatRec.js'
-  export function propagate(satrec: SatRec, ...args: any[]): { position: { x: number; y: number; z: number }; velocity: { x: number; y: number; z: number }; meanElements: any } | null
+  export function propagate(satrec: SatRec, ...args: unknown[]): { position: { x: number; y: number; z: number }; velocity: { x: number; y: number; z: number }; meanElements: unknown } | null
 }
 
 declare module './satellite/propagation/gstime.js' {
@@ -51,11 +51,11 @@ declare module './satellite/propagation/check-for-decay.js' {
 
 declare module './satellite/propagation/dpper.js' {
   import type { SatRec } from './satellite/SatRec.js'
-  export function dpper(satrec: SatRec, options: any): any
+  export function dpper(satrec: SatRec, options: unknown): unknown
 }
 
 declare module './satellite/propagation/dspace.js' {
-  export function dspace(options: any): { em: number; argpm: number; inclm: number; mm: number; nodem: number; nm: number }
+  export function dspace(options: unknown): { em: number; argpm: number; inclm: number; mm: number; nodem: number; nm: number }
 }
 
 declare module './satellite/propagation/SatRec.js' {
@@ -178,7 +178,7 @@ declare module './satellite/propagation/SatRec.js' {
 
 declare module './satellite/io.js' {
   export function twoline2satrec(line1: string, line2: string): import('./satellite/propagation/SatRec.js').SatRec | null
-  export function json2satrec(json: any): import('./satellite/propagation/SatRec.js').SatRec | null
+  export function json2satrec(json: unknown): import('./satellite/propagation/SatRec.js').SatRec | null
 }
 
 declare module './satellite/transforms.js' {
@@ -192,7 +192,7 @@ declare module './satellite/transforms.js' {
   export function eciToGeodetic(eci: { x: number; y: number; z: number }, gmst: number): { longitude: number; latitude: number; height: number }
   export function eciToEcf(eci: { x: number; y: number; z: number }, gmst: number): { x: number; y: number; z: number }
   export function ecfToEci(ecf: { x: number; y: number; z: number }, gmst: number): { x: number; y: number; z: number }
-  export function ecfToLookAngles(observer: { longitude: number; latitude: number; height: number }, satellite: { x: number; y: number; z: number }): any
+  export function ecfToLookAngles(observer: { longitude: number; latitude: number; height: number }, satellite: { x: number; y: number; z: number }): unknown
 }
 
 declare module './satellite/common-types.js' {
@@ -203,7 +203,7 @@ declare module './satellite/common-types.js' {
   export type EcfVec3<T> = { x: T; y: T; z: T }
   export type GeodeticLocation = { longitude: number; latitude: number; height: number }
   export type GMSTime = number
-  export type LookAngles = any
+  export type LookAngles = unknown
 }
 
 declare module './satellite/shadow.js' {
