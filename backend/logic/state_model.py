@@ -11,6 +11,7 @@ import sys
 from datetime import UTC, datetime
 
 from propagate import build_satellite, get_latest_elements, propagate
+
 from db import get_connection
 
 SOURCE_NAMES = {
